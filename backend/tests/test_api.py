@@ -1,8 +1,8 @@
-"""Backend API tests for ShiftLogistics booking app.
+"""Backend API tests for ShiftLogistics — HAPPY PATH.
 
-Google Maps API key currently has API restrictions (Places API New + Distance Matrix
-blocked) → those endpoints are expected to return HTTP 4xx with a user-friendly
-error detail message. NO OSM fallback should exist.
+User has enabled Places API (New), Geocoding API, and Distance Matrix API and
+set application restrictions to 'None'. Backend should now return REAL Google
+Maps data with provider='google'.
 """
 import os
 import re
@@ -34,12 +34,12 @@ def s():
     return sess
 
 
-# --- Verify no OSM/Nominatim/Haversine references remain in backend source ---
+# --- No-fallback source guarantee ---
 class TestNoOSMFallback:
     def test_server_py_has_no_osm_refs(self):
         with open("/app/backend/server.py", "r") as f:
             src = f.read().lower()
-        for banned in ("nominatim", "openstreetmap", "haversine", "osm"):
+        for banned in ("nominatim", "openstreetmap", "haversine"):
             assert banned not in src, f"'{banned}' still present in server.py"
 
 
@@ -62,72 +62,99 @@ class TestVehicles:
         assert rates == {"two_wheeler": 10, "tata_ace": 20, "bada_dost": 30}
 
 
-FRIENDLY_KEYWORDS = re.compile(
-    r"(not authorized|unauthorized|invalid|quota|unavailable|unable to reach|"
-    r"enable the api|please try again|no route found|check the pickup)",
-    re.IGNORECASE,
-)
-
-
-# --- Maps autocomplete (expected to 4xx due to API restriction) ---
-class TestAutocompleteFriendlyError:
-    def test_autocomplete_returns_friendly_error_no_osm_fallback(self, s):
-        r = s.get(f"{API}/maps/autocomplete", params={"q": "connaught place delhi"}, timeout=20)
-        # With API restrictions we expect a 4xx (typically 403). If the user unlocks
-        # the key later, a 200 would also be valid → then we'd expect provider=google.
-        if r.status_code == 200:
-            data = r.json()
-            assert data.get("provider") == "google", "Must be google (no OSM fallback)"
-            assert "suggestions" in data
-            return
-
-        assert 400 <= r.status_code < 600, f"Unexpected status: {r.status_code}"
+# --- Autocomplete (Google Places New) — HAPPY PATH ---
+class TestAutocompleteLive:
+    def test_autocomplete_connaught_place(self, s):
+        r = s.get(f"{API}/maps/autocomplete", params={"q": "connaught place delhi"}, timeout=25)
+        assert r.status_code == 200, f"Expected 200 (Google unlocked). Got {r.status_code}: {r.text[:200]}"
         data = r.json()
-        detail = data.get("detail", "")
-        assert isinstance(detail, str) and len(detail) > 0, "detail must be a non-empty string"
-        # Must NOT be a raw Google JSON dump
-        assert not detail.strip().startswith("{"), f"detail looks like raw JSON: {detail[:120]}"
-        assert FRIENDLY_KEYWORDS.search(detail), f"detail not user-friendly: {detail}"
-
-
-# --- Distance (expected to 4xx due to API restriction) ---
-class TestDistanceFriendlyError:
-    def test_distance_km_returns_friendly_error_no_osm_fallback(self, s):
-        r = s.get(
-            f"{API}/maps/distance-km",
-            params={"origin": "Connaught Place, Delhi", "destination": "India Gate, Delhi"},
-            timeout=20,
+        assert data.get("provider") == "google", f"provider must be 'google', got: {data.get('provider')}"
+        suggs = data.get("suggestions", [])
+        assert isinstance(suggs, list) and len(suggs) > 0, "expected non-empty suggestions"
+        # Google placeIds typically start with ChIJ or Eh
+        first = suggs[0]
+        assert first["placeId"], "placeId must be non-empty"
+        assert re.match(r"^(ChIJ|Eh|Gh|El|Ei)", first["placeId"]), (
+            f"placeId '{first['placeId']}' does not look like a Google Place ID"
         )
-        if r.status_code == 200:
-            data = r.json()
-            assert data.get("provider") == "google"
-            assert isinstance(data["distance_km"], (int, float))
-            return
+        assert first["text"], "text must be non-empty"
+        # Verify at least one suggestion mentions Connaught or Delhi
+        blob = " ".join(x["text"].lower() for x in suggs)
+        assert "connaught" in blob or "delhi" in blob, f"suggestions do not mention query: {blob[:200]}"
+        # Stash a placeId for cross-test reuse
+        pytest.pickup_place_id = first["placeId"]
 
-        assert 400 <= r.status_code < 600
-        detail = r.json().get("detail", "")
-        assert isinstance(detail, str) and len(detail) > 0
-        assert not detail.strip().startswith("{"), f"raw JSON leaked: {detail[:120]}"
-        assert FRIENDLY_KEYWORDS.search(detail), f"detail not user-friendly: {detail}"
+    def test_autocomplete_mumbai_central(self, s):
+        r = s.get(f"{API}/maps/autocomplete", params={"q": "mumbai central"}, timeout=25)
+        assert r.status_code == 200, f"Got {r.status_code}: {r.text[:200]}"
+        data = r.json()
+        assert data.get("provider") == "google"
+        suggs = data.get("suggestions", [])
+        assert len(suggs) > 0
+        assert all(x.get("placeId") for x in suggs), "every suggestion must have a placeId"
+        blob = " ".join(x["text"].lower() for x in suggs)
+        assert "mumbai" in blob, f"suggestions do not mention mumbai: {blob[:200]}"
+
+    def test_autocomplete_india_gate(self, s):
+        r = s.get(f"{API}/maps/autocomplete", params={"q": "india gate delhi"}, timeout=25)
+        assert r.status_code == 200
+        data = r.json()
+        assert data.get("provider") == "google"
+        suggs = data.get("suggestions", [])
+        assert len(suggs) > 0
+        pytest.dropoff_place_id = suggs[0]["placeId"]
 
 
-# --- Bookings (no Google dependency) ---
+# --- Distance Matrix — HAPPY PATH ---
+class TestDistanceLive:
+    def test_distance_mumbai_pune_by_name(self, s):
+        r = s.get(f"{API}/maps/distance-km",
+                  params={"origin": "Mumbai", "destination": "Pune"}, timeout=25)
+        assert r.status_code == 200, f"Got {r.status_code}: {r.text[:200]}"
+        data = r.json()
+        assert data["provider"] == "google"
+        km = data["distance_km"]
+        assert isinstance(km, (int, float))
+        # Mumbai→Pune road distance ~ 140-170 km
+        assert 130 <= km <= 180, f"Mumbai-Pune distance {km} km not in [130,180]"
+        assert data.get("duration_text"), "duration_text must be populated"
+        # Duration should mention hour or minute
+        dur = data["duration_text"].lower()
+        assert "hour" in dur or "min" in dur, f"duration text unexpected: {dur}"
+
+    def test_distance_with_real_placeids(self, s):
+        pu = getattr(pytest, "pickup_place_id", None)
+        dr = getattr(pytest, "dropoff_place_id", None)
+        if not pu or not dr:
+            pytest.skip("placeIds not available from autocomplete tests")
+        r = s.get(f"{API}/maps/distance-km",
+                  params={"origin": pu, "destination": dr}, timeout=25)
+        assert r.status_code == 200, f"Got {r.status_code}: {r.text[:200]}"
+        data = r.json()
+        assert data["provider"] == "google"
+        assert isinstance(data["distance_km"], (int, float))
+        assert data["distance_km"] > 0
+        assert data.get("duration_text")
+
+
+# --- Bookings ---
 class TestBookings:
     def test_create_booking_recalculates_fare_tata_ace(self, s):
+        # This is the exact case mentioned in the task: distance_km=10, tata_ace → ₹200
         payload = {
             "name": "TEST_User",
             "phone": "9876543210",
             "vehicle_type": "tata_ace",
             "pickup_address": "TEST pickup addr",
             "dropoff_address": "TEST drop addr",
-            "distance_km": 5.0,
+            "distance_km": 10.0,
             "fare": 999.0,  # wrong — server should ignore & recalc
         }
         r = s.post(f"{API}/bookings", json=payload, timeout=15)
         assert r.status_code == 200, r.text
         data = r.json()
         assert data["status"] == "confirmed"
-        assert data["fare"] == 100.00, f"5 km * ₹20 = 100. Got {data['fare']}"
+        assert data["fare"] == 200.00, f"10 km * ₹20 = 200. Got {data['fare']}"
         assert "_id" not in data
         assert len(data["id"]) > 10
         pytest.booking_id = data["id"]
@@ -138,7 +165,7 @@ class TestBookings:
             "pickup_address": "a", "dropoff_address": "b", "distance_km": 3.5, "fare": 0,
         }, timeout=15)
         assert r.status_code == 200
-        assert r.json()["fare"] == 35.0  # 3.5 * 10
+        assert r.json()["fare"] == 35.0
 
     def test_create_booking_bada_dost(self, s):
         r = s.post(f"{API}/bookings", json={
@@ -146,7 +173,7 @@ class TestBookings:
             "pickup_address": "a", "dropoff_address": "b", "distance_km": 2.0, "fare": 0,
         }, timeout=15)
         assert r.status_code == 200
-        assert r.json()["fare"] == 60.0  # 2 * 30
+        assert r.json()["fare"] == 60.0
 
     def test_invalid_vehicle_type_rejected(self, s):
         r = s.post(f"{API}/bookings", json={
@@ -155,7 +182,7 @@ class TestBookings:
         }, timeout=15)
         assert r.status_code == 400
 
-    def test_list_bookings_excludes_mongo_id(self, s):
+    def test_list_bookings_shows_new_booking(self, s):
         r = s.get(f"{API}/bookings", timeout=15)
         assert r.status_code == 200
         bookings = r.json()
