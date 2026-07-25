@@ -80,20 +80,20 @@ class BookingCreate(BaseModel):
 class Booking(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     vehicle_type: str
-    vehicle_name: str
+    vehicle_name: str = ""
     pickup_address: str
     dropoff_address: str
     distance_km: float
     fare: float
-    sender_phone: str
-    receiver_name: str
-    receiver_phone: str
-    goods_note: str
-    payment_method: str
-    driver_name: str
-    driver_phone: str
-    vehicle_number: str
-    status: StatusLiteral = "searching"
+    sender_phone: str = ""
+    receiver_name: str = ""
+    receiver_phone: str = ""
+    goods_note: str = ""
+    payment_method: str = "cash_pickup"
+    driver_name: str = ""
+    driver_phone: str = ""
+    vehicle_number: str = ""
+    status: str = "searching"
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
@@ -237,7 +237,13 @@ async def create_booking(payload: BookingCreate):
 @api_router.get("/bookings", response_model=List[Booking])
 async def list_bookings():
     docs = await db.bookings.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
-    return [Booking(**d) for d in docs]
+    result: List[Booking] = []
+    for d in docs:
+        try:
+            result.append(Booking(**d))
+        except Exception as e:
+            logger.warning(f"Skipping malformed booking {d.get('id')}: {e}")
+    return result
 
 
 @api_router.get("/bookings/{booking_id}", response_model=Booking)

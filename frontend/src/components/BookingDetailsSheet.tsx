@@ -299,6 +299,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 2,
     borderColor: C.borderStrong,
     maxHeight: "92%",
+    flexShrink: 1,
   },
   grabber: {
     alignSelf: "center",
@@ -337,7 +338,7 @@ const styles = StyleSheet.create({
     borderColor: C.borderStrong,
     padding: 6,
   },
-  body: { flexGrow: 0, paddingHorizontal: 16 },
+  body: { flex: 1, paddingHorizontal: 16 },
 
   summary: {
     marginTop: 16,

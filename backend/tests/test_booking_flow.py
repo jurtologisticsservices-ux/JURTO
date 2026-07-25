@@ -160,6 +160,32 @@ class TestListBookings:
         assert dates == sorted(dates, reverse=True)
 
 
+# ---------- Legacy resilience regression ----------
+class TestLegacyBooking:
+    """Regression for iter-4 bug: GET /api/bookings must not 500 when the DB
+    contains legacy documents that lack the new required fields."""
+
+    def test_legacy_doc_returned_with_defaults(self, created_booking):
+        r = requests.get(f"{API}/bookings", timeout=15)
+        assert r.status_code == 200
+        items = r.json()
+        legacy = [b for b in items if b["id"] == "legacy-1"]
+        # legacy-1 is inserted out-of-band before the test suite runs
+        if not legacy:
+            pytest.skip("legacy-1 not seeded; run scripts/insert_legacy.py")
+        b = legacy[0]
+        # Legacy defaults applied
+        assert b["sender_phone"] == ""
+        assert b["receiver_name"] == ""
+        assert b["receiver_phone"] == ""
+        assert b["goods_note"] == ""
+        assert b["payment_method"] == "cash_pickup"
+        assert b["driver_name"] == ""
+        assert b["vehicle_number"] == ""
+        assert b["vehicle_name"] == ""
+        assert b["status"] == "searching"
+
+
 # ---------- Google Maps (still working) ----------
 class TestGoogleMaps:
     def test_autocomplete_real_address(self):

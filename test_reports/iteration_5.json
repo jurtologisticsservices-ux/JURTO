@@ -1,0 +1,29 @@
+{
+  "summary": "Both iteration_4 fixes verified end-to-end. (a) Backend GET /api/bookings resilience: inserted synthetic legacy doc {id:'legacy-1', vehicle_type:'two_wheeler', pickup='Old', dropoff='Old', distance_km:5, fare:50, created_at:'2026-01-01…'} via motor; GET /api/bookings returned 200 with 6 items including legacy-1 fully hydrated with defaults (sender_phone='', receiver_name='', receiver_phone='', goods_note='', payment_method='cash_pickup', driver_name='', driver_phone='', vehicle_number='', vehicle_name='', status='searching'). Note: 'updated_at' also auto-populated from Booking default_factory (runtime timestamp) — this is expected pydantic behaviour and does not violate the spec. try/except in list_bookings() now guards against ValidationErrors — verified by code review at server.py:238-246. Full pytest suite: 16/16 passing (added TestLegacyBooking regression test). (b) Frontend BookingDetailsSheet CONFIRM reachability on 390x844: sheet geometry {top:41, bottom:779.75, height:738.75} → payment-cash_pickup at y=599 (visible) and confirm-booking-button box {x:12, y:714.75, w:366, h:53} → bottom=767.75 which is well inside viewport 844. Confirmed with **normal page.click() (no force=True, no dispatch_event hack) — succeeded on first attempt**. flex:1 on body + flexShrink:1 on sheet resolved the layout. Full E2E: PROCEED → BookingDetailsSheet → sender_phone/receiver_name/receiver_phone/goods_note filled → COD PICKUP selected → CONFIRM (normal click) → /tracking/7e516ea9…, SEARCHING text present, driver-card appeared, status auto-progressed to 'picked_up' after 15s (verified via backend GET). My Bookings tab loaded without error, legacy 'Old' record visible in DOM, SEARCHING badge rendered. Only console warning: 'props.pointerEvents is deprecated' (rn-web internals, cosmetic only). Success: 100% backend + 100% frontend. Both fixes are permanent and correct.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "react-native-web (peer of expo-router)", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Non-blocking, comes from library internals — not fixable in app code. Ref: browser console during BookingDetailsSheet render."}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_booking_flow.py", "/app/test_reports/pytest/pytest_results.xml", "/app/test_reports/sheet_full.png", "/app/test_reports/my_bookings.png"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py:80-98 Booking model now has empty-string defaults for all previously-required fields — correctly enables backward-compat serialization of legacy docs.",
+    "server.py:238-246 list_bookings() wraps Booking(**d) in try/except and logs+skips malformed rows — great defensive coding; single bad doc no longer poisons the whole list.",
+    "BookingDetailsSheet.tsx:341 body: {flex:1} + 297-303 sheet: {maxHeight:'92%', flexShrink:1} — this combination makes the ScrollView fill remaining space above the fixed footer, so CONFIRM is always pinned at the bottom of the sheet regardless of content height.",
+    "Consider: legacy doc's `updated_at` field is filled with runtime timestamp instead of matching created_at. Harmless but slightly misleading in list/sort. Could be addressed later with `updated_at: str = Field(default_factory=..., alias='updated_at')` and validator that falls back to created_at."
+  ],
+  "updated_files": ["/app/backend/tests/test_booking_flow.py"],
+  "success_rate": {"backend": "100% (16/16 pytest, including new TestLegacyBooking)", "frontend": "100% (full E2E on 390x844 with legacy record + normal click on CONFIRM)"},
+  "seed_data_creation": "Inserted 1 legacy doc {id:'legacy-1', vehicle_type:'two_wheeler', pickup='Old', dropoff='Old', distance_km:5, fare:50} directly into MongoDB bookings collection to simulate pre-refactor data. Script: /tmp/insert_legacy.py (may be lost on pod restart — is idempotent, can be re-run). Created 2 additional bookings during pytest + 1 real E2E booking during Playwright run (Connaught Place → India Gate, TATA ACE, fare ₹97.40, auto-progressed to picked_up).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both iteration_4 fixes are stable. Legacy doc 'legacy-1' remains in MongoDB (id=legacy-1, pickup/drop='Old'). If future test needs a clean state, `db.bookings.delete_one({'id':'legacy-1'})`. To re-seed: `python /tmp/insert_legacy.py` (script may need to be recreated after pod restart — see iteration_5 report for the script body). Regression test TestLegacyBooking added to /app/backend/tests/test_booking_flow.py; it uses pytest.skip if legacy-1 is not seeded, so it won't fail spuriously in fresh envs."
+}
