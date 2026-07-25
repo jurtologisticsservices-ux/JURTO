@@ -19,7 +19,14 @@ Mobile-first Expo React Native app for booking logistics vehicles in India with 
 - Timeline auto-advances via PATCH `/api/bookings/{id}/status` at t=3s / 11s / 21s
 - My Bookings: pull-to-refresh, active-on-top / past-below, color-coded status badges
 
-## Live Tracking + Driver App
+## Notifications & Alerts
+- **In-app notification center**: `BellIcon` (with unread badge) in both tab headers → opens `/notifications` history screen. Notifications persisted in MongoDB `notifications` collection.
+- **Real-time toast banners** (`<ToastHost>`) mounted at root — appear on Booking Confirmed (brand orange), Driver Assigned / Goods Picked Up (info dark), Delivered (success green). Auto-dismiss in ~4s.
+- **Backend triggers**:
+  - `POST /api/bookings` emits `BOOKING_CONFIRMED`.
+  - `PATCH /api/bookings/{id}/status` emits `STATUS_ASSIGNED` (with driver name + license plate), `STATUS_PICKED_UP`, `STATUS_DELIVERED`, `STATUS_CANCELLED`.
+- **Second WebSocket** `/api/ws/notifications` broadcasts every emitted notification globally. Frontend `NotificationsProvider` reconnects with backoff, keeps in-memory list synced.
+- REST: `GET /api/notifications`, `POST /api/notifications/read-all`, `DELETE /api/notifications`.
 - On booking creation, backend geocodes pickup + dropoff via Google Geocoding API and places driver ~1–2 km from pickup.
 - Background asyncio task moves driver 15% closer to target every 2s (target = pickup while `searching|assigned`, dropoff after `picked_up`).
 - FastAPI **WebSocket** at `/api/ws/tracking/{id}` broadcasts `snapshot` on connect and `location` / `status` events afterwards. K8s preview ingress supports WS upgrade.

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, View, Platform } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -45,7 +45,6 @@ export default function ToastHost() {
 
   return (
     <View
-      pointerEvents="box-none"
       style={[styles.host, { paddingTop: insets.top + 6 }]}
       testID="toast-host"
     >
@@ -104,7 +103,7 @@ const styles = StyleSheet.create({
     zIndex: 9999,
     gap: 8,
     paddingHorizontal: 12,
-    ...(Platform.OS === "web" ? { pointerEvents: "box-none" as any } : {}),
+    pointerEvents: "box-none",
   },
   toast: {
     borderWidth: 2,
