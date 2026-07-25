@@ -1,0 +1,32 @@
+{
+  "summary": "Verified Google Maps-only migration (OSM fallback fully removed). Backend: 10/10 pytest tests pass, including a source-code check confirming no nominatim/osm/haversine/openstreetmap references in server.py. /api/maps/autocomplete returns HTTP 403 with user-friendly detail 'Google Maps API key is not authorized for this service. Please enable the API on your key's restriction list in Google Cloud Console.' /api/maps/distance-km returns HTTP 400 with 'Google Maps API key is invalid or unauthorized.' — both messages plain-English, not raw Google JSON. /api/vehicles returns correct rates (10/20/30). /api/bookings recalculates fare server-side: tata_ace 5.0 km → ₹100.00 ✓, two_wheeler 3.5 km → ₹35.00 ✓, bada_dost 2.0 km → ₹60.00 ✓. Invalid vehicle_type rejected (400). List bookings excludes _id. Frontend: on typing pickup address, [data-testid=autocomplete-error] renders the friendly message and no suggestions dropdown appears (confirming no silent OSM fallback). BOOK NOW button is disabled (aria-disabled=true) because distanceKm is null. Fare summary shows DISTANCE '-- KM', ETA '--' (testID duration-value present), TOTAL '₹--'. Vehicle switching works. GOOGLE_MAPS_API_KEY read cleanly from backend/.env (backend healthy on /api/).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "BookingFormModal", "issue": "TouchableWithoutFeedback is deprecated in React Native — non-blocking, previously noted. Reference: /app/frontend/app/index.tsx:563"}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "None required for this iteration. When user unlocks the Google Maps API key (enables Places API New + Distance Matrix + removes API restrictions), the same code will serve real autocomplete + distance results with provider='google' — tests are already tolerant (they accept a 200 with provider=google as a pass, or a 4xx with friendly detail).",
+    "Optional (previously noted): replace TouchableWithoutFeedback with Pressable in BookingFormModal."
+  ],
+  "critical_code_review_comments": [
+    "server.py fully purged of OSM/Nominatim/Haversine — grep confirms zero matches.",
+    "_friendly_google_error() maps 403 / PERMISSION_DENIED / API_KEY_SERVICE_BLOCKED / REQUEST_DENIED / OVER_QUERY_LIMIT / INVALID_REQUEST / ZERO_RESULTS to plain-English messages. Good coverage.",
+    "Autocomplete endpoint correctly uses Places API (New) POST https://places.googleapis.com/v1/places:autocomplete with X-Goog-Api-Key + X-Goog-FieldMask headers.",
+    "distance-km handles both raw placeIds and free-form addresses via the _fmt() helper, correctly prefixing bare placeIds with 'place_id:'.",
+    "Server-side fare recalculation from VEHICLE_RATES ignores client-supplied fare — good security practice.",
+    "GOOGLE_MAPS_API_KEY loaded via os.environ[...] at import time — will fail fast if missing (correct behavior)."
+  ],
+  "updated_files": ["/app/backend/tests/test_api.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Created 3 TEST_ bookings via API (TEST_User tata_ace, TEST_Two two_wheeler, TEST_Bd bada_dost) — persisted in bookings collection for regression.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Google Maps API key currently has API restrictions → Places API (New) returns 403, Distance Matrix returns REQUEST_DENIED. This is EXPECTED per user. Backend surfaces friendly error messages via _friendly_google_error(). Frontend testIDs to check: autocomplete-error, distance-error, duration-value, distance-value, fare-value, book-now-button (aria-disabled reflects canBook). When key is unlocked, autocomplete + distance tests will pass with provider='google' — the tests already accept both branches.",
+  "rca_of_issue": "N/A — feature migration verified working as specified."
+}

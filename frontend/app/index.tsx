@@ -93,8 +93,10 @@ export default function Index() {
   const [autocompleteLoading, setAutocompleteLoading] = useState(false);
 
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [durationText, setDurationText] = useState<string | null>(null);
   const [distanceLoading, setDistanceLoading] = useState(false);
   const [distanceError, setDistanceError] = useState<string | null>(null);
+  const [autocompleteError, setAutocompleteError] = useState<string | null>(null);
 
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -107,10 +109,18 @@ export default function Index() {
   const fetchSuggestions = useCallback(async (q: string): Promise<Suggestion[]> => {
     try {
       const res = await fetch(`${API}/maps/autocomplete?q=${encodeURIComponent(q)}`);
-      if (!res.ok) return [];
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setAutocompleteError(
+          typeof data.detail === "string" ? data.detail : "Address search failed. Please try again.",
+        );
+        return [];
+      }
+      setAutocompleteError(null);
       const data = await res.json();
       return data.suggestions ?? [];
     } catch {
+      setAutocompleteError("Network error. Please check your connection.");
       return [];
     }
   }, []);
@@ -149,6 +159,7 @@ export default function Index() {
   useEffect(() => {
     if (!pickupPlace || !dropoffPlace) {
       setDistanceKm(null);
+      setDurationText(null);
       setDistanceError(null);
       return;
     }
@@ -159,15 +170,21 @@ export default function Index() {
       try {
         const url = `${API}/maps/distance-km?origin=${encodeURIComponent(pickupPlace.placeId)}&destination=${encodeURIComponent(dropoffPlace.placeId)}`;
         const res = await fetch(url);
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          setDistanceError("Could not calculate distance");
-          setDistanceKm(null);
-        } else {
-          const data = await res.json();
-          if (!cancelled) setDistanceKm(data.distance_km);
+          if (!cancelled) {
+            setDistanceError(
+              typeof data.detail === "string" ? data.detail : "Could not calculate distance.",
+            );
+            setDistanceKm(null);
+            setDurationText(null);
+          }
+        } else if (!cancelled) {
+          setDistanceKm(data.distance_km);
+          setDurationText(data.duration_text ?? null);
         }
       } catch {
-        if (!cancelled) setDistanceError("Network error");
+        if (!cancelled) setDistanceError("Network error. Please check your connection.");
       } finally {
         if (!cancelled) setDistanceLoading(false);
       }
@@ -344,6 +361,12 @@ export default function Index() {
               <Text style={styles.inlineLoadingText}>SEARCHING…</Text>
             </View>
           )}
+
+          {autocompleteError && !autocompleteLoading && (
+            <View style={styles.errorBox} testID="autocomplete-error">
+              <Text style={styles.errorText}>! {autocompleteError.toUpperCase()}</Text>
+            </View>
+          )}
         </View>
 
         {/* Fare summary */}
@@ -356,6 +379,13 @@ export default function Index() {
                 : distanceKm != null
                 ? `${distanceKm.toFixed(2)} KM`
                 : "-- KM"}
+            </Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.fareRow}>
+            <Text style={styles.fareLabel}>ETA</Text>
+            <Text style={styles.fareValue} testID="duration-value">
+              {durationText ? durationText.toUpperCase() : "--"}
             </Text>
           </View>
           <View style={styles.divider} />
