@@ -19,14 +19,23 @@ Mobile-first Expo React Native app for booking logistics vehicles in India with 
 - Timeline auto-advances via PATCH `/api/bookings/{id}/status` at t=3s / 11s / 21s
 - My Bookings: pull-to-refresh, active-on-top / past-below, color-coded status badges
 
+## Live Tracking + Driver App
+- On booking creation, backend geocodes pickup + dropoff via Google Geocoding API and places driver ~1–2 km from pickup.
+- Background asyncio task moves driver 15% closer to target every 2s (target = pickup while `searching|assigned`, dropoff after `picked_up`).
+- FastAPI **WebSocket** at `/api/ws/tracking/{id}` broadcasts `snapshot` on connect and `location` / `status` events afterwards. K8s preview ingress supports WS upgrade.
+- Frontend live map: `react-native-webview` + Leaflet + OSM tiles on native; iframe fallback on web (both driven by the same `<LiveMap>` component with `injectJavaScript` / `contentWindow.updateData`).
+- Client-side Haversine auto-transitions status when driver comes within ~150 m of the current target.
+- **Driver Mode** screen at `/driver/[id]` — yellow-header, live map, status override buttons (`ACCEPT & DEPART` → `GOODS PICKED UP` → `DELIVERED`), sender / receiver call buttons. Reachable from a `DRIVER` button in the customer tracking header.
+
 ## API Endpoints
 - `GET /api/vehicles`
 - `GET /api/maps/autocomplete?q=`
 - `GET /api/maps/distance-km?origin=&destination=`
-- `POST /api/bookings` — create; server recalculates fare
+- `POST /api/bookings` — geocodes + spawns driver + persists
 - `GET /api/bookings` — list (skips malformed docs)
-- `GET /api/bookings/{id}` — single
-- `PATCH /api/bookings/{id}/status`
+- `GET /api/bookings/{id}`
+- `PATCH /api/bookings/{id}/status` — broadcasts to WS subscribers
+- `WS /api/ws/tracking/{id}` — snapshot + live location + status events
 
 ## Design
 Brutalist LIGHT: hard 2pt black borders, no border-radius, no shadow, mono type for data, orange `#FF4500` accent, yellow `#FFC300` for license plates, green `#00B85E` for completed timeline steps.
