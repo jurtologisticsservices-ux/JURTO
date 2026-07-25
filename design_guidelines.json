@@ -1,0 +1,130 @@
+{
+  "app_name": "ShiftLogistics",
+  "personality": "5 Brutalist Mobile LIGHT",
+  "personality_one_liner": "Command-center logistics with raw data exposed, hard lines, and high-contrast industrial utility.",
+  "color": {
+    "surface": "#FFFFFF",
+    "onSurface": "#111111",
+    "surfaceSecondary": "#F4F4F0",
+    "onSurfaceSecondary": "#111111",
+    "surfaceTertiary": "#EBEBE6",
+    "onSurfaceTertiary": "#333333",
+    "surfaceInverse": "#111111",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#FF4500",
+    "brandPrimary": "#FF4500",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#FF6A33",
+    "onBrandSecondary": "#111111",
+    "brandTertiary": "#FFDCD1",
+    "onBrandTertiary": "#FF4500",
+    "success": "#00B85E",
+    "onSuccess": "#FFFFFF",
+    "warning": "#FFC300",
+    "onWarning": "#111111",
+    "error": "#E63946",
+    "onError": "#FFFFFF",
+    "info": "#111111",
+    "onInfo": "#FFFFFF",
+    "border": "#E0E0DB",
+    "borderStrong": "#111111",
+    "divider": "#111111"
+  },
+  "typography": {
+    "displayFontFamily": "Space Grotesk",
+    "textFontFamily": "JetBrains Mono",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Use rigid grids, hard alignment, and visible spacing systems instead of soft cards. Maintain edge-to-edge containers where possible.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 0,
+    "md": 0,
+    "lg": 0,
+    "pill": 0
+  },
+  "shadow_tier": "0",
+  "navigation": "stack_only",
+  "icon_set": "Feather",
+  "glassmorphism": {
+    "enabled": false,
+    "do's": [],
+    "dont's": ["Never use glassmorphism in Brutalist style", "No blur on any surface"]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "none",
+      "android": "none",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "none",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Booking",
+      "purpose": "Primary operational surface for booking logistics vehicles.",
+      "states": {
+        "loading": "Giant mono counter and stark spinner.",
+        "empty": "Abstract map background waiting for address input.",
+        "error": "Signal red alert box with hard borders."
+      },
+      "layout": "Header with stark typography. Below, structural 2pt black border form for Pickup/Dropoff inputs (use mono font for labels like [ ORIGIN ] and [ DEST ]). Below that, massive horizontal scrolling vehicle cards with exposed borders. Fare and Distance displayed in oversized mono typography above the sticky Book Now button. Book Now CTA is absolute full width, hard black border, solid brandPrimary fill."
+    },
+    {
+      "name": "ConfirmationForm",
+      "purpose": "Collect user name and phone number before dispatch.",
+      "states": {
+        "loading": "Simple stark spinner.",
+        "empty": "Empty input fields with rigid borders.",
+        "error": "Red outlined input fields with raw error strings."
+      },
+      "layout": "Bottom sheet or full screen with edge-to-edge input fields. Form inputs should look like terminal inputs with hard borders. A massive Submit button at the bottom."
+    }
+  ],
+  "images": {
+    "map_background": {
+      "url": "https://images.pexels.com/photos/6288284/pexels-photo-6288284.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "abstract map graphic"
+    },
+    "vehicle_two_wheeler": {
+      "url": "https://images.unsplash.com/photo-1617347454431-f49d7ff5c3b1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwxfHxtb3RvcmN5Y2xlJTIwZGVsaXZlcnklMjBib3glMjBsb2dpc3RpY3N8ZW58MHx8fHwxNzg0OTkzOTQ1fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "motorcycle delivery box"
+    },
+    "vehicle_tata_ace": {
+      "url": "https://images.unsplash.com/photo-1601467995997-ac1ae9a8fff4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwxfHxtaW5pJTIwdHJ1Y2slMjBsb2dpc3RpY3MlMjBjYXJnb3xlbnwwfHx8fDE3ODQ5OTM5NDV8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "mini cargo truck"
+    },
+    "vehicle_bada_dost": {
+      "url": "https://images.unsplash.com/photo-1616432043562-3671ea2e5242?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwxfHxsYXJnZSUyMGNhcmdvJTIwdHJ1Y2slMjBsb2dpc3RpY3N8ZW58MHx8fHwxNzg0OTkzOTQ1fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "large logistics cargo truck"
+    }
+  },
+  "instructions_to_main_agent": [
+    "STRICT RULE: Do NOT use `borderRadius` anywhere. Set all radius values to 0.",
+    "STRICT RULE: Do NOT use drop shadows or glassmorphism. Use 2pt solid `borderStrong` (hard black) for elevation and separation.",
+    "Use JetBrains Mono for all numeric values, fares, distances, and input labels like [ PICKUP ].",
+    "Use Space Grotesk for large headings and display typography.",
+    "The vehicle selector should present massive cards. When a vehicle is selected, flip its background color to `surfaceInverse` (black) or `brandPrimary` (orange), and text to white.",
+    "Implement Google Places Autocomplete logic for pickup and drop-off. The distance should be auto-calculated using Map APIs.",
+    "Fare calculations: Two-wheeler (₹10/km), Tata Ace (₹20/km), Bada Dost (₹30/km). Display the calculated fare explicitly in the UI.",
+    "The CTA button must be edge-to-edge with a 2pt black border."
+  ]
+}
