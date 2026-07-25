@@ -57,6 +57,12 @@ export type Booking = {
   driver_phone: string;
   vehicle_number: string;
   status: BookingStatus;
+  pickup_lat?: number | null;
+  pickup_lng?: number | null;
+  dropoff_lat?: number | null;
+  dropoff_lng?: number | null;
+  driver_lat?: number | null;
+  driver_lng?: number | null;
   created_at: string;
   updated_at: string;
 };

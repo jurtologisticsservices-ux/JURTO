@@ -23,6 +23,7 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="tracking/[id]" options={{ presentation: "card" }} />
+        <Stack.Screen name="driver/[id]" options={{ presentation: "card" }} />
       </Stack>
     </SafeAreaProvider>
   );

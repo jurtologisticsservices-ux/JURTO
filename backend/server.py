@@ -1,13 +1,14 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import random
+import asyncio
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict, Set, Tuple
 import uuid
 from datetime import datetime, timezone
 import httpx
@@ -63,13 +64,11 @@ class DistanceResponse(BaseModel):
 
 
 class BookingCreate(BaseModel):
-    # Route + vehicle
     vehicle_type: str
     pickup_address: str
     dropoff_address: str
     distance_km: float
     fare: float
-    # Contacts
     sender_phone: str
     receiver_name: str
     receiver_phone: str
@@ -94,6 +93,13 @@ class Booking(BaseModel):
     driver_phone: str = ""
     vehicle_number: str = ""
     status: str = "searching"
+    # Geo fields
+    pickup_lat: Optional[float] = None
+    pickup_lng: Optional[float] = None
+    dropoff_lat: Optional[float] = None
+    dropoff_lng: Optional[float] = None
+    driver_lat: Optional[float] = None
+    driver_lng: Optional[float] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
@@ -125,6 +131,55 @@ def _generate_vehicle_number() -> str:
     letters = "".join(random.choices("ABCDEFGHJKLMNPQRSTUVWXYZ", k=2))
     digits = f"{random.randint(1000, 9999)}"
     return f"{state} {district} {letters} {digits}"
+
+
+async def _geocode(address_or_placeid: str) -> Optional[Tuple[float, float]]:
+    """Geocode a placeId or address via Google Geocoding API."""
+    params: Dict[str, str] = {"key": GOOGLE_MAPS_API_KEY}
+    if len(address_or_placeid) > 20 and " " not in address_or_placeid:
+        params["place_id"] = address_or_placeid
+    else:
+        params["address"] = address_or_placeid
+    try:
+        async with httpx.AsyncClient(timeout=10) as hc:
+            r = await hc.get("https://maps.googleapis.com/maps/api/geocode/json", params=params)
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        if data.get("status") != "OK" or not data.get("results"):
+            return None
+        loc = data["results"][0]["geometry"]["location"]
+        return (float(loc["lat"]), float(loc["lng"]))
+    except Exception as e:
+        logger.warning(f"Geocode error for '{address_or_placeid[:40]}': {e}")
+        return None
+
+
+# ---------- WebSocket manager ----------
+class WSManager:
+    def __init__(self) -> None:
+        self.connections: Dict[str, Set[WebSocket]] = {}
+
+    async def connect(self, booking_id: str, ws: WebSocket) -> None:
+        self.connections.setdefault(booking_id, set()).add(ws)
+
+    def disconnect(self, booking_id: str, ws: WebSocket) -> None:
+        conns = self.connections.get(booking_id)
+        if conns:
+            conns.discard(ws)
+            if not conns:
+                self.connections.pop(booking_id, None)
+
+    async def broadcast(self, booking_id: str, payload: dict) -> None:
+        conns = list(self.connections.get(booking_id, []))
+        for ws in conns:
+            try:
+                await ws.send_json(payload)
+            except Exception:
+                self.disconnect(booking_id, ws)
+
+
+manager = WSManager()
 
 
 # ---------- Google Maps routes ----------
@@ -185,7 +240,6 @@ async def distance_km(origin: str, destination: str):
         logger.error(f"Distance Matrix network error: {e}")
         raise HTTPException(status_code=502, detail="Unable to reach Google Maps. Check your connection.")
     if r.status_code != 200:
-        logger.error(f"Distance Matrix HTTP {r.status_code}: {r.text[:400]}")
         raise HTTPException(status_code=r.status_code, detail=_friendly_google_error(r.status_code, r.text))
     data = r.json()
     if data.get("status") != "OK":
@@ -213,6 +267,25 @@ async def create_booking(payload: BookingCreate):
         raise HTTPException(status_code=400, detail="Invalid vehicle type")
     fare = round(payload.distance_km * VEHICLE_RATES[payload.vehicle_type], 2)
     driver = random.choice(DRIVERS)
+
+    # Geocode both addresses (best effort)
+    pickup_coords = await _geocode(payload.pickup_address)
+    dropoff_coords = await _geocode(payload.dropoff_address)
+
+    driver_lat: Optional[float] = None
+    driver_lng: Optional[float] = None
+    if pickup_coords:
+        # Random start ~1-2 km around pickup (1 deg lat ≈ 111 km → 0.01 deg ≈ 1.1 km)
+        offset_lat = random.uniform(-0.02, 0.02)
+        offset_lng = random.uniform(-0.02, 0.02)
+        # Ensure not too close
+        if abs(offset_lat) < 0.008:
+            offset_lat = 0.012 * (1 if offset_lat >= 0 else -1)
+        if abs(offset_lng) < 0.008:
+            offset_lng = 0.012 * (1 if offset_lng >= 0 else -1)
+        driver_lat = pickup_coords[0] + offset_lat
+        driver_lng = pickup_coords[1] + offset_lng
+
     booking = Booking(
         vehicle_type=payload.vehicle_type,
         vehicle_name=VEHICLE_NAMES[payload.vehicle_type],
@@ -229,6 +302,12 @@ async def create_booking(payload: BookingCreate):
         driver_phone=driver["phone"],
         vehicle_number=_generate_vehicle_number(),
         status="searching",
+        pickup_lat=pickup_coords[0] if pickup_coords else None,
+        pickup_lng=pickup_coords[1] if pickup_coords else None,
+        dropoff_lat=dropoff_coords[0] if dropoff_coords else None,
+        dropoff_lng=dropoff_coords[1] if dropoff_coords else None,
+        driver_lat=driver_lat,
+        driver_lng=driver_lng,
     )
     await db.bookings.insert_one(booking.model_dump())
     return booking
@@ -263,8 +342,97 @@ async def update_status(booking_id: str, payload: StatusUpdate):
         raise HTTPException(status_code=400, detail="Invalid status")
     doc["status"] = payload.status
     doc["updated_at"] = datetime.now(timezone.utc).isoformat()
-    await db.bookings.update_one({"id": booking_id}, {"$set": {"status": doc["status"], "updated_at": doc["updated_at"]}})
+    # If picked up, snap driver to pickup so next tick moves toward dropoff
+    if payload.status == "picked_up" and doc.get("pickup_lat") is not None:
+        doc["driver_lat"] = doc["pickup_lat"]
+        doc["driver_lng"] = doc["pickup_lng"]
+    if payload.status == "delivered" and doc.get("dropoff_lat") is not None:
+        doc["driver_lat"] = doc["dropoff_lat"]
+        doc["driver_lng"] = doc["dropoff_lng"]
+    await db.bookings.update_one(
+        {"id": booking_id},
+        {"$set": {
+            "status": doc["status"], "updated_at": doc["updated_at"],
+            "driver_lat": doc.get("driver_lat"), "driver_lng": doc.get("driver_lng"),
+        }},
+    )
+    # Notify subscribers
+    await manager.broadcast(booking_id, {
+        "type": "status",
+        "status": doc["status"],
+        "driver_lat": doc.get("driver_lat"),
+        "driver_lng": doc.get("driver_lng"),
+    })
     return Booking(**doc)
+
+
+# ---------- WebSocket ----------
+@api_router.websocket("/ws/tracking/{booking_id}")
+async def ws_tracking(websocket: WebSocket, booking_id: str):
+    await websocket.accept()
+    await manager.connect(booking_id, websocket)
+    try:
+        doc = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+        if doc:
+            await websocket.send_json({
+                "type": "snapshot",
+                "status": doc.get("status"),
+                "driver_lat": doc.get("driver_lat"),
+                "driver_lng": doc.get("driver_lng"),
+                "pickup_lat": doc.get("pickup_lat"),
+                "pickup_lng": doc.get("pickup_lng"),
+                "dropoff_lat": doc.get("dropoff_lat"),
+                "dropoff_lng": doc.get("dropoff_lng"),
+            })
+        while True:
+            # We don't expect messages from client; but reading keeps the socket alive
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.debug(f"WS closed: {e}")
+    finally:
+        manager.disconnect(booking_id, websocket)
+
+
+# ---------- Background driver simulator ----------
+_sim_task: Optional[asyncio.Task] = None
+
+
+async def _simulate_drivers_loop():
+    """Every 2s, move each active driver 15% closer to its current target (pickup or dropoff)."""
+    while True:
+        try:
+            active_docs = await db.bookings.find(
+                {"status": {"$in": ["searching", "assigned", "picked_up"]}},
+                {"_id": 0},
+            ).to_list(500)
+            for doc in active_docs:
+                bid = doc["id"]
+                status = doc.get("status")
+                if status in ("searching", "assigned"):
+                    tgt_lat, tgt_lng = doc.get("pickup_lat"), doc.get("pickup_lng")
+                else:  # picked_up
+                    tgt_lat, tgt_lng = doc.get("dropoff_lat"), doc.get("dropoff_lng")
+                dlat, dlng = doc.get("driver_lat"), doc.get("driver_lng")
+                if tgt_lat is None or tgt_lng is None or dlat is None or dlng is None:
+                    continue
+                # Step 15% toward target
+                new_lat = dlat + (tgt_lat - dlat) * 0.15
+                new_lng = dlng + (tgt_lng - dlng) * 0.15
+                await db.bookings.update_one(
+                    {"id": bid},
+                    {"$set": {"driver_lat": new_lat, "driver_lng": new_lng}},
+                )
+                await manager.broadcast(bid, {
+                    "type": "location",
+                    "driver_lat": new_lat,
+                    "driver_lng": new_lng,
+                    "status": status,
+                })
+        except Exception as e:
+            logger.warning(f"Driver simulator tick error: {e}")
+        await asyncio.sleep(2)
 
 
 app.include_router(api_router)
@@ -278,6 +446,16 @@ app.add_middleware(
 )
 
 
+@app.on_event("startup")
+async def startup_tasks():
+    global _sim_task
+    _sim_task = asyncio.create_task(_simulate_drivers_loop())
+    logger.info("Started driver simulator background task")
+
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    global _sim_task
+    if _sim_task:
+        _sim_task.cancel()
     client.close()
