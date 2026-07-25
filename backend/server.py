@@ -182,6 +182,59 @@ class WSManager:
 manager = WSManager()
 
 
+class NotificationManager:
+    def __init__(self) -> None:
+        self.conns: Set[WebSocket] = set()
+
+    async def connect(self, ws: WebSocket) -> None:
+        self.conns.add(ws)
+
+    def disconnect(self, ws: WebSocket) -> None:
+        self.conns.discard(ws)
+
+    async def broadcast(self, payload: dict) -> None:
+        for ws in list(self.conns):
+            try:
+                await ws.send_json(payload)
+            except Exception:
+                self.disconnect(ws)
+
+
+notif_manager = NotificationManager()
+
+
+STATUS_NOTIFICATION_MAP: Dict[str, Tuple[str, str]] = {
+    "assigned": ("Driver Assigned",     "{driver_name} is heading to pickup ({vehicle_number})."),
+    "picked_up": ("Goods Picked Up",    "Your goods are on the way to the drop-off location."),
+    "delivered": ("Delivered",          "Your order has been delivered successfully. Thank you!"),
+    "cancelled": ("Booking Cancelled",  "Your booking was cancelled."),
+}
+
+
+async def _emit_notification(
+    booking_id: str,
+    ntype: str,
+    title: str,
+    body: str,
+    extra: Optional[dict] = None,
+) -> dict:
+    doc: dict = {
+        "id": str(uuid.uuid4()),
+        "booking_id": booking_id,
+        "type": ntype,
+        "title": title,
+        "body": body,
+        "read": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if extra:
+        doc.update(extra)
+    await db.notifications.insert_one(doc)
+    doc.pop("_id", None)
+    await notif_manager.broadcast({"event": "notification", **doc})
+    return doc
+
+
 # ---------- Google Maps routes ----------
 @api_router.get("/")
 async def root():
@@ -310,6 +363,19 @@ async def create_booking(payload: BookingCreate):
         driver_lng=driver_lng,
     )
     await db.bookings.insert_one(booking.model_dump())
+    # Fire notification
+    await _emit_notification(
+        booking_id=booking.id,
+        ntype="BOOKING_CONFIRMED",
+        title="Booking Confirmed",
+        body=f"Your {booking.vehicle_name} booking is confirmed. We're finding a driver near you.",
+        extra={
+            "vehicle_name": booking.vehicle_name,
+            "fare": booking.fare,
+            "pickup_address": booking.pickup_address,
+            "dropoff_address": booking.dropoff_address,
+        },
+    )
     return booking
 
 
@@ -356,13 +422,33 @@ async def update_status(booking_id: str, payload: StatusUpdate):
             "driver_lat": doc.get("driver_lat"), "driver_lng": doc.get("driver_lng"),
         }},
     )
-    # Notify subscribers
+    # Notify subscribers of this booking
     await manager.broadcast(booking_id, {
         "type": "status",
         "status": doc["status"],
         "driver_lat": doc.get("driver_lat"),
         "driver_lng": doc.get("driver_lng"),
     })
+    # Also emit a global notification for the app-wide feed
+    tmpl = STATUS_NOTIFICATION_MAP.get(payload.status)
+    if tmpl:
+        title, body_tmpl = tmpl
+        body = body_tmpl.format(
+            driver_name=doc.get("driver_name", "The driver"),
+            vehicle_number=doc.get("vehicle_number", ""),
+        )
+        await _emit_notification(
+            booking_id=booking_id,
+            ntype=f"STATUS_{payload.status.upper()}",
+            title=title,
+            body=body,
+            extra={
+                "vehicle_name": doc.get("vehicle_name"),
+                "driver_name": doc.get("driver_name"),
+                "vehicle_number": doc.get("vehicle_number"),
+                "fare": doc.get("fare"),
+            },
+        )
     return Booking(**doc)
 
 
@@ -393,6 +479,40 @@ async def ws_tracking(websocket: WebSocket, booking_id: str):
         logger.debug(f"WS closed: {e}")
     finally:
         manager.disconnect(booking_id, websocket)
+
+
+@api_router.websocket("/ws/notifications")
+async def ws_notifications(websocket: WebSocket):
+    await websocket.accept()
+    await notif_manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.debug(f"Notif WS closed: {e}")
+    finally:
+        notif_manager.disconnect(websocket)
+
+
+# ---------- Notifications REST ----------
+@api_router.get("/notifications")
+async def list_notifications():
+    docs = await db.notifications.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return docs
+
+
+@api_router.post("/notifications/read-all")
+async def mark_all_read():
+    r = await db.notifications.update_many({"read": False}, {"$set": {"read": True}})
+    return {"modified": r.modified_count}
+
+
+@api_router.delete("/notifications")
+async def clear_notifications():
+    r = await db.notifications.delete_many({})
+    return {"deleted": r.deleted_count}
 
 
 # ---------- Background driver simulator ----------

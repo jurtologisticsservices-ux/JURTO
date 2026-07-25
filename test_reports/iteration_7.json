@@ -1,0 +1,59 @@
+{
+  "summary": "Tested the new Notification & Alert system end-to-end. Backend (REST + WebSocket) fully passes 6/6 pytest cases. Frontend passes all critical flows: bell icon on both Book and My Bookings tabs, live toast banners (variants brand/info/success) via WebSocket, unread badge with numeric count, navigation to /notifications, mark-all-read on open, CLEAR button, and empty state. WebSocket /api/ws/notifications correctly delivers real-time events with event='notification'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ToastHost / BellIcon (top overlay)",
+        "issue": "When a toast is on screen (up to ~4.2s), it visually overlaps the header on small viewports (375x667) and its inner children have full pointerEvents; a tap that lands on the toast area does NOT reach the underlying bell icon. On the first UI test (375x667) tapping the bell while a fresh toast was visible did not navigate to /notifications. Once the toast animated away the same tap worked. Consider raising the bell's z-index above ToastHost, or making toast items intercept-safe (e.g. wrap items in pointerEvents='box-none' when they don't need input, or reduce the toast width to leave the bell tap area free).",
+        "testID": "toast-brand / bell-icon",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "ToastHost",
+        "issues": [
+          "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. In /app/frontend/src/components/ToastHost.tsx line 48 <View pointerEvents=\"box-none\"> — move to style.pointerEvents to silence the deprecation warning on RN Web/newer RN."
+        ]
+      }
+    ],
+    "react_native_issues": [
+      {
+        "component": "ToastHost",
+        "issue": "Uses deprecated `pointerEvents` prop instead of `style.pointerEvents`. Reference: /app/frontend/src/components/ToastHost.tsx:48 (and the Platform.OS==='web' spread at line 107 also sets it as a style — the prop form on line 48 is the deprecated one)."
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_notifications.py",
+    "/app/test_reports/pytest/pytest_notifications.xml"
+  ],
+  "action_items": [
+    "Fix ToastHost overlap over BellIcon: elevate BellIcon zIndex above the toast host, or constrain toast width / add extra top offset so tapping the header bell isn't intercepted while a toast is animating.",
+    "Migrate `pointerEvents=\"box-none\"` to `style={{ pointerEvents: 'box-none' }}` on the ToastHost root View (/app/frontend/src/components/ToastHost.tsx:48) to remove the RN deprecation warning."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 582 lines — still under 700, but approaching the split threshold; consider moving Notifications into its own module.",
+    "Backend correctly excludes MongoDB _id in all responses (find({}, {'_id': 0}) and doc.pop('_id') after insert).",
+    "Frontend correctly uses process.env.EXPO_PUBLIC_BACKEND_URL (via src/lib/api.ts) — no hardcoded URLs.",
+    "NotificationsProvider has WebSocket auto-reconnect with 3s backoff and refreshes state on reconnect — good.",
+    "All interactive elements have testID (bell-icon, bell-badge, clear-all-button, back-button, notif-<id>, notifications-empty, toast-<variant>)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_notifications.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 pytest cases)",
+    "frontend": "100% functional (7/7 UI cases; 1 timing-related overlap issue reproducible but not blocking flow)"
+  },
+  "seed_data_creation": "Bookings are created via API during tests using 'Andheri West, Mumbai' → 'Bandra West, Mumbai' and are cleaned by DELETE /api/notifications at start & end of each test module. Bookings themselves are not deleted (no DELETE booking endpoint), but they don't interfere with subsequent runs.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The Notifications system is fully working. Backend: /api/notifications (GET, POST /read-all, DELETE) + /api/ws/notifications. Frontend: NotificationsProvider mounted in _layout.tsx, BellIcon on both tab headers, ToastHost overlay. Reuse /app/backend/tests/test_notifications.py for regression. Known cosmetic issue: toast overlays bell for ~4s which can intercept taps on small viewports.",
+  "rca_of_issue": "For the intermittent bell-tap failure: ToastHost is rendered AFTER the Stack in _layout.tsx at absolute position top:0. Individual toast Animated.Views have default pointerEvents='auto'. Because the toast container spans the full width (paddingHorizontal:12 only), a toast covers the bell area at the top-right for ~4.2s. Mitigation: either (a) set style={{ pointerEvents: 'box-none' }} on Animated.View items so only the close-button captures events, or (b) raise BellIcon zIndex/elevation above the toast host, or (c) render ToastHost BEFORE the Stack so it sits underneath the header."
+}

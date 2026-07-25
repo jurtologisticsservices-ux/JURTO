@@ -14,6 +14,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 
 import { C, MONO, DISPLAY } from "@/src/lib/theme";
 import { Booking, BookingStatus, listBookings } from "@/src/lib/api";
+import BellIcon from "@/src/components/BellIcon";
 
 const STATUS_LABEL: Record<BookingStatus, string> = {
   searching: "SEARCHING",
@@ -140,8 +141,11 @@ export default function MyBookingsScreen() {
 function Header() {
   return (
     <View style={styles.header}>
-      <Text style={styles.headerTitle}>MY BOOKINGS</Text>
-      <Text style={styles.headerSubtitle}>{"// ORDER HISTORY"}</Text>
+      <View>
+        <Text style={styles.headerTitle}>MY BOOKINGS</Text>
+        <Text style={styles.headerSubtitle}>{"// ORDER HISTORY"}</Text>
+      </View>
+      <BellIcon />
     </View>
   );
 }

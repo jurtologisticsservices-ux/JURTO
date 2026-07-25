@@ -24,6 +24,7 @@ import {
   fetchDistance,
 } from "@/src/lib/api";
 import BookingDetailsSheet from "@/src/components/BookingDetailsSheet";
+import BellIcon from "@/src/components/BellIcon";
 
 type SelectedPlace = { placeId: string; text: string };
 
@@ -160,8 +161,11 @@ export default function BookingScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <View style={styles.header} testID="app-header">
-        <Text style={styles.headerTitle}>SHIFT</Text>
-        <Text style={styles.headerSubtitle}>{"// LOGISTICS"}</Text>
+        <View>
+          <Text style={styles.headerTitle}>SHIFT</Text>
+          <Text style={styles.headerSubtitle}>{"// LOGISTICS"}</Text>
+        </View>
+        <BellIcon />
       </View>
 
       <ScrollView

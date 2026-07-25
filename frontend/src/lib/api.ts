@@ -135,3 +135,46 @@ export async function listBookings(): Promise<Booking[]> {
   if (!res.ok) throw new Error(await parseError(res));
   return (await res.json()) as Booking[];
 }
+
+// ---------- Notifications ----------
+
+export type NotificationType =
+  | "BOOKING_CONFIRMED"
+  | "STATUS_ASSIGNED"
+  | "STATUS_PICKED_UP"
+  | "STATUS_DELIVERED"
+  | "STATUS_CANCELLED";
+
+export type Notification = {
+  id: string;
+  booking_id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  read: boolean;
+  created_at: string;
+  driver_name?: string | null;
+  vehicle_number?: string | null;
+  vehicle_name?: string | null;
+  fare?: number | null;
+  pickup_address?: string | null;
+  dropoff_address?: string | null;
+};
+
+export async function fetchNotifications(): Promise<Notification[]> {
+  const res = await fetch(`${API}/notifications`);
+  if (!res.ok) throw new Error(await parseError(res));
+  return (await res.json()) as Notification[];
+}
+
+export async function markAllNotificationsRead(): Promise<{ modified: number }> {
+  const res = await fetch(`${API}/notifications/read-all`, { method: "POST" });
+  if (!res.ok) throw new Error(await parseError(res));
+  return (await res.json()) as { modified: number };
+}
+
+export async function clearNotifications(): Promise<{ deleted: number }> {
+  const res = await fetch(`${API}/notifications`, { method: "DELETE" });
+  if (!res.ok) throw new Error(await parseError(res));
+  return (await res.json()) as { deleted: number };
+}
