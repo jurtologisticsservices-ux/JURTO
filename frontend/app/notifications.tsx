@@ -89,7 +89,7 @@ export default function NotificationsScreen() {
               <Pressable
                 style={styles.row}
                 testID={`notif-${item.id}`}
-                onPress={() => item.booking_id && router.push(`/tracking/${item.booking_id}`)}
+                onPress={() => item.order_id && router.push(`/tracking/${item.order_id}`)}
               >
                 <View style={[styles.rowIcon, { backgroundColor: meta.color }]}>
                   <Feather name={meta.icon} size={16} color={C.onSurface} />

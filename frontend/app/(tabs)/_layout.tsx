@@ -2,7 +2,7 @@ import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { C, MONO } from "@/src/lib/theme";
+import { C, TEXT } from "@/src/lib/theme";
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -11,40 +11,29 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: C.brand,
-        tabBarInactiveTintColor: C.onSurface,
+        tabBarInactiveTintColor: C.onSurfaceTertiary,
         tabBarStyle: {
-          backgroundColor: C.surface,
-          borderTopWidth: 2,
-          borderTopColor: C.borderStrong,
-          height: 56 + insets.bottom,
+          backgroundColor: C.surfaceSecondary,
+          borderTopWidth: 1,
+          borderTopColor: C.border,
+          height: 60 + insets.bottom,
           paddingBottom: insets.bottom,
           paddingTop: 6,
         },
-        tabBarLabelStyle: {
-          fontFamily: MONO,
-          fontSize: 10,
-          letterSpacing: 1,
-          fontWeight: "700",
-          marginTop: 2,
-        },
-        tabBarItemStyle: {
-          paddingVertical: 4,
-        },
+        tabBarLabelStyle: { fontFamily: TEXT, fontSize: 10, fontWeight: "600", letterSpacing: 1 },
       }}
     >
       <Tabs.Screen
         name="index"
-        options={{
-          title: "BOOK",
-          tabBarIcon: ({ color }) => <Feather name="package" size={20} color={color} />,
-        }}
+        options={{ title: "HOME", tabBarIcon: ({ color }) => <Feather name="map-pin" size={20} color={color} /> }}
       />
       <Tabs.Screen
-        name="my-bookings"
-        options={{
-          title: "MY BOOKINGS",
-          tabBarIcon: ({ color }) => <Feather name="list" size={20} color={color} />,
-        }}
+        name="orders"
+        options={{ title: "ORDERS", tabBarIcon: ({ color }) => <Feather name="package" size={20} color={color} /> }}
+      />
+      <Tabs.Screen
+        name="account"
+        options={{ title: "ACCOUNT", tabBarIcon: ({ color }) => <Feather name="user" size={20} color={color} /> }}
       />
     </Tabs>
   );

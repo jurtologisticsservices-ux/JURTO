@@ -1,0 +1,76 @@
+{
+  "summary": "Full LuxeLogistics refactor tested end-to-end. Backend: 18/18 pytest cases pass (auth send/verify-otp, /auth/me get+patch, vehicles list=9 ordered, maps distance-multi hops=2, orders create+per-user scoping+404-other-user, patch status emits WS+notification, notifications scoping, addresses CRUD scoping, WS tracking snapshot+location, WS notifications reject-missing-token+scoped). Frontend: Welcome→Phone→OTP→Home→Stops→Vehicle→Summary→Tracking flow works, all account sub-pages render, brand mark visible, all core testIDs present. ONE HIGH bug found: booking flow BLOCKED when pickup uses auto-detected 'Current location' — /booking/vehicle sends the string 'Current location' to /api/maps/distance-multi (place_id is null, no lat,lng fallback) → Google returns 400 'Invalid address'. Also flagged deprecated RN warnings and status='searching' hiding the driver-card testID.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Vehicle screen distance-multi payload builder",
+        "issue": "When pickup is auto-detected on Home (address='Current location', lat/lng set, place_id=null), /booking/vehicle calls fetchDistanceMulti(stops.map(s => s.place_id || s.address)) which sends the literal string 'Current location' as the origin. Google Distance Matrix returns 400 → screen shows 'Invalid address. Please check pickup/drop.' and Continue is dead. Fix: fall back to `${lat},${lng}` when place_id is missing but coords exist. Reference: /app/frontend/app/booking/vehicle.tsx:33.",
+        "testID": "vehicle-hero",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Tracking driver-card",
+        "issue": "While status='searching' the driver-card (with driver-name, vehicle-number, call-driver-button testIDs) is not rendered — a searching-driver placeholder is shown instead. Requirements state driver info should be visible on tracking screen (driver_name and vehicle_number are already available server-side at order creation). Consider showing the driver-card immediately (or at least driver-name and vehicle-number) even while status='searching'. Reference: /app/frontend/app/tracking/[id].tsx:131-153.",
+        "testID": "driver-card",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Home → Stops → Vehicle (Distance calc for auto-detected pickup)",
+        "issue": "Distance-multi call fails with 400 when pickup has lat/lng but no place_id. Frontend must include 'lat,lng' fallback in the stops payload.",
+        "affected_testIDs": ["vehicle-hero", "vehicle-fare", "continue-button"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Global",
+        "issues": [
+          "Deprecation warnings in console: 'props.pointerEvents is deprecated. Use style.pointerEvents' (still coming from ToastHost, previously reported in iteration_7) and 'TouchableWithoutFeedback is deprecated. Please use Pressable'."
+        ]
+      }
+    ],
+    "react_native_issues": [
+      {
+        "component": "ToastHost",
+        "issue": "Deprecated `pointerEvents` prop still present. Reference: /app/frontend/src/components/ToastHost.tsx:48"
+      },
+      {
+        "component": "TouchableWithoutFeedback usage",
+        "issue": "One or more screens still use deprecated `TouchableWithoutFeedback`. Please migrate to `Pressable`. Grep for TouchableWithoutFeedback under /app/frontend/app and /app/frontend/src to find the exact file."
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_luxelogistics.py",
+    "/app/test_reports/pytest/pytest_luxelogistics.xml"
+  ],
+  "action_items": [
+    "CRITICAL: In /app/frontend/app/booking/vehicle.tsx (~line 33), change `stops.map((s) => s.place_id || s.address)` to prefer `lat,lng` when place_id is missing but coords exist, e.g. `stops.map((s) => s.place_id || (s.lat != null && s.lng != null ? `${s.lat},${s.lng}` : s.address))`. This unblocks the entire Home→Booking flow for users whose pickup is auto-detected. Backend already accepts 'lat,lng' as a stop identifier.",
+    "Show driver-card (driver-name, vehicle-number, call-driver-button) as soon as the order exists — currently hidden while status='searching' even though driver_name/vehicle_number are populated at creation. Reference: /app/frontend/app/tracking/[id].tsx:131-153.",
+    "Migrate ToastHost `pointerEvents` prop to `style.pointerEvents` (repeat from iteration_7).",
+    "Replace remaining `TouchableWithoutFeedback` occurrences with `Pressable`."
+  ],
+  "critical_code_review_comments": [
+    "server.py: 840 lines — exceeds the 700-line split threshold. Consider splitting into auth.py, orders.py, maps.py, notifications.py, ws.py modules.",
+    "Backend correctly enforces per-user scoping on orders, notifications, and addresses (queries always filter by `user_id: user.id`). WS handlers also validate token+ownership before accepting.",
+    "Server-side fare computation (distance_km * vehicle rate) is correct and tested (Tata Ace @ 5km => 110.00).",
+    "Legacy `bookings` collection is untouched — no endpoint exposes it (verified).",
+    "Frontend uses process.env.EXPO_PUBLIC_BACKEND_URL — no hardcoded URLs.",
+    "Auth token stored via AsyncStorage; JWT-based Bearer scheme is consistent across REST + WS (?token=...) endpoints.",
+    "vehicle.tsx has the distance-fallback bug documented above; otherwise structured cleanly."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_luxelogistics.py (new comprehensive pytest suite)"
+  ],
+  "success_rate": {
+    "backend": "100% (18/18 pytest cases)",
+    "frontend": "~90% — all screens render and testIDs correct; blocked path is /booking/vehicle when pickup is auto-detected (distance-multi 400)."
+  },
+  "seed_data_creation": "Tests create disposable users via mock OTP (any 6-digit code). All entities prefixed TEST_. No cleanup endpoint for orders exists; a few TEST orders remain in Mongo — negligible.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Reuse /app/backend/tests/test_luxelogistics.py for backend regression. UI flow requires overriding stop-0 with a real autocomplete pick (do NOT rely on the auto-detected 'Current location') until the fallback fix lands. Continue-button appears on multiple screens simultaneously in DOM — always use `:visible` selector. Note the Summary screen requires goods-note-input to pass validation (missing it triggers 'Describe the goods.' inline error even though the backend treats it as optional).",
+  "rca_of_issue": "Bug RCA — Booking blocked with 'Invalid address' on Vehicle screen: 1) Home /(tabs)/index.tsx:49-58 sets stops[0] to {address:'Current location', lat, lng, place_id:null}. 2) /booking/vehicle.tsx:33 builds the distance-multi payload as `stops.map(s => s.place_id || s.address)` — since place_id is null, the string 'Current location' is used. 3) Backend /api/maps/distance-multi passes 'Current location' to Google Distance Matrix (via _fmt() which only treats values containing ',' or long no-space strings as coords/place_ids). 4) Google returns NOT_FOUND → backend raises 400 → UI shows 'Invalid address. Please check pickup/drop.' Reproduction: fresh login, Home → 'Where to?' → fill only the drop → tap Choose Vehicle. Mitigation: fall back to `${lat},${lng}` when place_id missing but coords exist."
+}

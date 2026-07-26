@@ -1,154 +1,73 @@
 const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 export const API = `${BASE_URL}/api`;
 
+// -------- Types --------
 export type Vehicle = {
-  id: "two_wheeler" | "tata_ace" | "bada_dost";
+  id: string;
   name: string;
+  capacity_kg: number;
   rate: number;
-  capacity: string;
-  image: string;
+  eta_min: number;
+  icon: string;
 };
-
-export const VEHICLES: Vehicle[] = [
-  {
-    id: "two_wheeler",
-    name: "TWO-WHEELER",
-    rate: 10,
-    capacity: "20 KG",
-    image:
-      "https://images.unsplash.com/photo-1617347454431-f49d7ff5c3b1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwxfHxtb3RvcmN5Y2xlJTIwZGVsaXZlcnklMjBib3glMjBsb2dpc3RpY3N8ZW58MHx8fHwxNzg0OTkzOTQ1fDA&ixlib=rb-4.1.0&q=85",
-  },
-  {
-    id: "tata_ace",
-    name: "TATA ACE",
-    rate: 20,
-    capacity: "750 KG",
-    image:
-      "https://images.unsplash.com/photo-1601467995997-ac1ae9a8fff4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwxfHxtaW5pJTIwdHJ1Y2slMjBsb2dpc3RpY3MlMjBjYXJnb3xlbnwwfHx8fDE3ODQ5OTM5NDV8MA&ixlib=rb-4.1.0&q=85",
-  },
-  {
-    id: "bada_dost",
-    name: "BADA DOST",
-    rate: 30,
-    capacity: "1500 KG",
-    image:
-      "https://images.unsplash.com/photo-1616432043562-3671ea2e5242?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwxfHxsYXJnZSUyMGNhcmdvJTIwdHJ1Y2slMjBsb2dpc3RpY3N8ZW58MHx8fHwxNzg0OTkzOTQ1fDA&ixlib=rb-4.1.0&q=85",
-  },
-];
 
 export type Suggestion = { placeId: string; text: string };
 
 export type BookingStatus = "searching" | "assigned" | "picked_up" | "delivered" | "cancelled";
 
-export type Booking = {
+export type Address = {
+  address: string;
+  lat?: number | null;
+  lng?: number | null;
+  place_id?: string | null;
+};
+
+export type SavedAddress = {
   id: string;
-  vehicle_type: Vehicle["id"];
+  label: string;
+  address: string;
+  lat?: number | null;
+  lng?: number | null;
+  place_id?: string | null;
+};
+
+export type User = {
+  id: string;
+  phone: string;
+  name?: string | null;
+  gst_number?: string | null;
+  gst_business_name?: string | null;
+  created_at: string;
+};
+
+export type Order = {
+  id: string;
+  user_id: string;
+  vehicle_type: string;
   vehicle_name: string;
-  pickup_address: string;
-  dropoff_address: string;
+  stops: Address[];
   distance_km: number;
   fare: number;
+  payment_method: "cash_pickup" | "cash_drop" | "upi";
   sender_phone: string;
   receiver_name: string;
   receiver_phone: string;
   goods_note: string;
-  payment_method: "cash_pickup" | "cash_drop" | "upi";
   driver_name: string;
   driver_phone: string;
   vehicle_number: string;
   status: BookingStatus;
-  pickup_lat?: number | null;
-  pickup_lng?: number | null;
-  dropoff_lat?: number | null;
-  dropoff_lng?: number | null;
   driver_lat?: number | null;
   driver_lng?: number | null;
   created_at: string;
   updated_at: string;
 };
 
-export type CreateBookingInput = {
-  vehicle_type: Vehicle["id"];
-  pickup_address: string;
-  dropoff_address: string;
-  distance_km: number;
-  fare: number;
-  sender_phone: string;
-  receiver_name: string;
-  receiver_phone: string;
-  goods_note: string;
-  payment_method: "cash_pickup" | "cash_drop" | "upi";
-};
-
-async function parseError(res: Response): Promise<string> {
-  try {
-    const data = await res.json();
-    if (typeof data?.detail === "string") return data.detail;
-    return "Something went wrong. Please try again.";
-  } catch {
-    return "Something went wrong. Please try again.";
-  }
-}
-
-export async function fetchSuggestions(q: string): Promise<Suggestion[]> {
-  const res = await fetch(`${API}/maps/autocomplete?q=${encodeURIComponent(q)}`);
-  if (!res.ok) throw new Error(await parseError(res));
-  const data = await res.json();
-  return data.suggestions ?? [];
-}
-
-export async function fetchDistance(originPlaceId: string, destinationPlaceId: string) {
-  const url = `${API}/maps/distance-km?origin=${encodeURIComponent(originPlaceId)}&destination=${encodeURIComponent(destinationPlaceId)}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(await parseError(res));
-  return (await res.json()) as { distance_km: number; distance_text: string; duration_text: string | null; provider: string };
-}
-
-export async function createBooking(input: CreateBookingInput): Promise<Booking> {
-  const res = await fetch(`${API}/bookings`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  if (!res.ok) throw new Error(await parseError(res));
-  return (await res.json()) as Booking;
-}
-
-export async function getBooking(id: string): Promise<Booking> {
-  const res = await fetch(`${API}/bookings/${id}`);
-  if (!res.ok) throw new Error(await parseError(res));
-  return (await res.json()) as Booking;
-}
-
-export async function updateBookingStatus(id: string, status: BookingStatus): Promise<Booking> {
-  const res = await fetch(`${API}/bookings/${id}/status`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
-  });
-  if (!res.ok) throw new Error(await parseError(res));
-  return (await res.json()) as Booking;
-}
-
-export async function listBookings(): Promise<Booking[]> {
-  const res = await fetch(`${API}/bookings`);
-  if (!res.ok) throw new Error(await parseError(res));
-  return (await res.json()) as Booking[];
-}
-
-// ---------- Notifications ----------
-
-export type NotificationType =
-  | "BOOKING_CONFIRMED"
-  | "STATUS_ASSIGNED"
-  | "STATUS_PICKED_UP"
-  | "STATUS_DELIVERED"
-  | "STATUS_CANCELLED";
-
 export type Notification = {
   id: string;
-  booking_id: string;
-  type: NotificationType;
+  user_id: string;
+  order_id: string;
+  type: string;
   title: string;
   body: string;
   read: boolean;
@@ -157,24 +76,173 @@ export type Notification = {
   vehicle_number?: string | null;
   vehicle_name?: string | null;
   fare?: number | null;
-  pickup_address?: string | null;
-  dropoff_address?: string | null;
 };
 
+// -------- Vehicle icons (MaterialCommunityIcons) --------
+export const VEHICLE_ICON: Record<string, string> = {
+  motorbike: "motorbike",
+  rickshaw: "rickshaw",
+  "auto-rickshaw": "rickshaw",
+  van: "van-passenger",
+  "van-utility": "van-utility",
+  truck: "truck",
+};
+
+// -------- API helpers --------
+let TOKEN: string | null = null;
+export function setAuthToken(t: string | null) {
+  TOKEN = t;
+}
+export function getAuthToken() {
+  return TOKEN;
+}
+
+async function parseError(res: Response): Promise<string> {
+  try {
+    const data = await res.json();
+    if (typeof data?.detail === "string") return data.detail;
+  } catch {
+    // ignore
+  }
+  return "Something went wrong. Please try again.";
+}
+
+function authHeaders(): Record<string, string> {
+  return TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {};
+}
+
+// -------- Auth --------
+export async function sendOtp(phone: string) {
+  const res = await fetch(`${API}/auth/send-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone }),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function verifyOtp(phone: string, otp: string, name?: string): Promise<{ token: string; user: User }> {
+  const res = await fetch(`${API}/auth/verify-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, otp, name }),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function getMe(): Promise<User> {
+  const res = await fetch(`${API}/auth/me`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function updateProfile(payload: Partial<Pick<User, "name" | "gst_number" | "gst_business_name">>): Promise<User> {
+  const res = await fetch(`${API}/auth/me`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+// -------- Saved addresses --------
+export async function listAddresses(): Promise<SavedAddress[]> {
+  const res = await fetch(`${API}/addresses`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+export async function saveAddress(payload: Omit<SavedAddress, "id">): Promise<SavedAddress> {
+  const res = await fetch(`${API}/addresses`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+export async function deleteAddress(id: string) {
+  const res = await fetch(`${API}/addresses/${id}`, { method: "DELETE", headers: authHeaders() });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+// -------- Maps + Vehicles --------
+export async function fetchVehicles(): Promise<Vehicle[]> {
+  const res = await fetch(`${API}/vehicles`);
+  if (!res.ok) throw new Error(await parseError(res));
+  const data = await res.json();
+  return data.vehicles;
+}
+export async function fetchSuggestions(q: string): Promise<Suggestion[]> {
+  const res = await fetch(`${API}/maps/autocomplete?q=${encodeURIComponent(q)}`);
+  if (!res.ok) throw new Error(await parseError(res));
+  return (await res.json()).suggestions ?? [];
+}
+export async function fetchDistanceMulti(stops: string[]): Promise<{ distance_km: number; duration_text: string | null; hops: number }> {
+  const res = await fetch(`${API}/maps/distance-multi`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ stops }),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+// -------- Orders --------
+export async function createOrder(payload: {
+  vehicle_type: string;
+  stops: Address[];
+  distance_km: number;
+  payment_method: Order["payment_method"];
+  sender_phone?: string;
+  receiver_name: string;
+  receiver_phone: string;
+  goods_note?: string;
+}): Promise<Order> {
+  const res = await fetch(`${API}/orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+export async function listOrders(): Promise<Order[]> {
+  const res = await fetch(`${API}/orders`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+export async function getOrder(id: string): Promise<Order> {
+  const res = await fetch(`${API}/orders/${id}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+export async function updateOrderStatus(id: string, status: BookingStatus): Promise<Order> {
+  const res = await fetch(`${API}/orders/${id}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+// -------- Notifications --------
 export async function fetchNotifications(): Promise<Notification[]> {
-  const res = await fetch(`${API}/notifications`);
+  const res = await fetch(`${API}/notifications`, { headers: authHeaders() });
   if (!res.ok) throw new Error(await parseError(res));
-  return (await res.json()) as Notification[];
+  return res.json();
 }
-
-export async function markAllNotificationsRead(): Promise<{ modified: number }> {
-  const res = await fetch(`${API}/notifications/read-all`, { method: "POST" });
+export async function markAllNotificationsRead() {
+  const res = await fetch(`${API}/notifications/read-all`, { method: "POST", headers: authHeaders() });
   if (!res.ok) throw new Error(await parseError(res));
-  return (await res.json()) as { modified: number };
+  return res.json();
 }
-
-export async function clearNotifications(): Promise<{ deleted: number }> {
-  const res = await fetch(`${API}/notifications`, { method: "DELETE" });
+export async function clearNotifications() {
+  const res = await fetch(`${API}/notifications`, { method: "DELETE", headers: authHeaders() });
   if (!res.ok) throw new Error(await parseError(res));
-  return (await res.json()) as { deleted: number };
+  return res.json();
 }

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { API, Booking } from "@/src/lib/api";
+import { API, Order, getAuthToken } from "@/src/lib/api";
 
 export type TrackingSocketPayload = {
   type?: "snapshot" | "location" | "status";
-  status?: Booking["status"];
+  status?: Order["status"];
   driver_lat?: number | null;
   driver_lng?: number | null;
   pickup_lat?: number | null;
@@ -12,14 +12,16 @@ export type TrackingSocketPayload = {
   dropoff_lng?: number | null;
 };
 
-export function useTrackingSocket(bookingId: string | undefined) {
+export function useTrackingSocket(orderId: string | undefined) {
   const [snap, setSnap] = useState<TrackingSocketPayload>({});
   const [connected, setConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    if (!bookingId) return;
-    const wsUrl = API.replace(/^http/, "ws") + `/ws/tracking/${bookingId}`;
+    if (!orderId) return;
+    const token = getAuthToken();
+    if (!token) return;
+    const wsUrl = API.replace(/^http/, "ws") + `/ws/tracking/${orderId}?token=${encodeURIComponent(token)}`;
     let closed = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -37,21 +39,16 @@ export function useTrackingSocket(bookingId: string | undefined) {
             // ignore
           }
         };
-        ws.onerror = () => {
-          setConnected(false);
-        };
+        ws.onerror = () => setConnected(false);
         ws.onclose = () => {
           setConnected(false);
           wsRef.current = null;
-          if (!closed) {
-            reconnectTimer = setTimeout(connect, 3000);
-          }
+          if (!closed) reconnectTimer = setTimeout(connect, 3000);
         };
       } catch {
         if (!closed) reconnectTimer = setTimeout(connect, 3000);
       }
     };
-
     connect();
 
     return () => {
@@ -64,7 +61,7 @@ export function useTrackingSocket(bookingId: string | undefined) {
       }
       wsRef.current = null;
     };
-  }, [bookingId]);
+  }, [orderId]);
 
   return { snap, connected };
 }

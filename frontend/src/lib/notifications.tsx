@@ -6,7 +6,9 @@ import {
   fetchNotifications,
   markAllNotificationsRead,
   clearNotifications as clearNotifsApi,
+  getAuthToken,
 } from "@/src/lib/api";
+import { useAuth } from "@/src/lib/auth";
 
 // -------- Toast pub/sub --------
 export type Toast = {
@@ -31,7 +33,6 @@ export function pushToast(t: Omit<Toast, "id"> & { id?: string }) {
   toastListeners.forEach((l) => l(toast));
 }
 
-// -------- Notifications Context --------
 type Ctx = {
   notifications: Notification[];
   unreadCount: number;
@@ -43,19 +44,20 @@ type Ctx = {
 
 const NotificationsCtx = createContext<Ctx | null>(null);
 
-function variantFor(type: Notification["type"]): Toast["variant"] {
+function variantFor(type: string): Toast["variant"] {
   if (type === "STATUS_DELIVERED") return "success";
   if (type === "BOOKING_CONFIRMED") return "brand";
   return "info";
 }
 
 export function NotificationsProvider({ children }: { children: React.ReactNode }) {
+  const { token } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [connected, setConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
-  const firstConnectRef = useRef(true);
 
   const refresh = useCallback(async () => {
+    if (!getAuthToken()) return;
     try {
       const list = await fetchNotifications();
       setNotifications(list);
@@ -68,7 +70,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     try {
       await markAllNotificationsRead();
     } catch {
-      // ignore server error; still update UI
+      // ignore
     }
     setNotifications((prev) => prev.map((n) => (n.read ? n : { ...n, read: true })));
   }, []);
@@ -83,11 +85,22 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   }, []);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    if (token) refresh();
+    else setNotifications([]);
+  }, [token, refresh]);
 
   useEffect(() => {
-    const wsUrl = API.replace(/^http/, "ws") + "/ws/notifications";
+    if (!token) {
+      try {
+        wsRef.current?.close();
+      } catch {
+        // ignore
+      }
+      wsRef.current = null;
+      setConnected(false);
+      return;
+    }
+    const wsUrl = API.replace(/^http/, "ws") + `/ws/notifications?token=${encodeURIComponent(token)}`;
     let closed = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -96,22 +109,15 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       try {
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
-        ws.onopen = () => {
-          setConnected(true);
-          if (!firstConnectRef.current) {
-            // On reconnect refresh state (we may have missed events)
-            refresh();
-          } else {
-            firstConnectRef.current = false;
-          }
-        };
+        ws.onopen = () => setConnected(true);
         ws.onmessage = (ev) => {
           try {
             const data = JSON.parse(ev.data);
             if (data.event === "notification") {
               const n: Notification = {
                 id: data.id,
-                booking_id: data.booking_id,
+                user_id: data.user_id,
+                order_id: data.order_id,
                 type: data.type,
                 title: data.title,
                 body: data.body,
@@ -121,8 +127,6 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
                 vehicle_number: data.vehicle_number ?? null,
                 vehicle_name: data.vehicle_name ?? null,
                 fare: data.fare ?? null,
-                pickup_address: data.pickup_address ?? null,
-                dropoff_address: data.dropoff_address ?? null,
               };
               setNotifications((prev) => {
                 if (prev.find((x) => x.id === n.id)) return prev;
@@ -131,7 +135,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
               pushToast({ title: n.title, body: n.body, variant: variantFor(n.type) });
             }
           } catch {
-            // ignore malformed messages
+            // ignore
           }
         };
         ws.onerror = () => setConnected(false);
@@ -155,11 +159,14 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       }
       wsRef.current = null;
     };
-  }, [refresh]);
+  }, [token]);
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
-  const value: Ctx = { notifications, unreadCount, markAllRead, clearAll, refresh, connected };
+  const value = useMemo<Ctx>(
+    () => ({ notifications, unreadCount, markAllRead, clearAll, refresh, connected }),
+    [notifications, unreadCount, markAllRead, clearAll, refresh, connected],
+  );
   return <NotificationsCtx.Provider value={value}>{children}</NotificationsCtx.Provider>;
 }
 
