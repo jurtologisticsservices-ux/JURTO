@@ -1,38 +1,38 @@
 {
-  "app_name": "ShiftLogistics",
-  "personality": "5 Brutalist Mobile LIGHT",
-  "personality_one_liner": "Command-center logistics with raw data exposed, hard lines, and high-contrast industrial utility.",
+  "app_name": "LuxeLogistics",
+  "personality": "6 Glass / Luxe",
+  "personality_one_liner": "A cinematic, high-end logistics experience anchored in charcoal slate and antique gold, emphasizing clarity, premium service, and effortless booking.",
   "color": {
-    "surface": "#FFFFFF",
-    "onSurface": "#111111",
-    "surfaceSecondary": "#F4F4F0",
-    "onSurfaceSecondary": "#111111",
-    "surfaceTertiary": "#EBEBE6",
-    "onSurfaceTertiary": "#333333",
-    "surfaceInverse": "#111111",
-    "onSurfaceInverse": "#FFFFFF",
-    "brand": "#FF4500",
-    "brandPrimary": "#FF4500",
-    "onBrandPrimary": "#FFFFFF",
-    "brandSecondary": "#FF6A33",
-    "onBrandSecondary": "#111111",
-    "brandTertiary": "#FFDCD1",
-    "onBrandTertiary": "#FF4500",
-    "success": "#00B85E",
+    "surface": "#121212",
+    "onSurface": "#FFFFFF",
+    "surfaceSecondary": "#1E1E1E",
+    "onSurfaceSecondary": "#E0E0E0",
+    "surfaceTertiary": "#292929",
+    "onSurfaceTertiary": "#BDBDBD",
+    "surfaceInverse": "#FFFFFF",
+    "onSurfaceInverse": "#121212",
+    "brand": "#D4AF37",
+    "brandPrimary": "#D4AF37",
+    "onBrandPrimary": "#121212",
+    "brandSecondary": "#F3E5AB",
+    "onBrandSecondary": "#121212",
+    "brandTertiary": "#403517",
+    "onBrandTertiary": "#D4AF37",
+    "success": "#2E7D32",
     "onSuccess": "#FFFFFF",
-    "warning": "#FFC300",
-    "onWarning": "#111111",
-    "error": "#E63946",
+    "warning": "#F57C00",
+    "onWarning": "#FFFFFF",
+    "error": "#C62828",
     "onError": "#FFFFFF",
-    "info": "#111111",
+    "info": "#0277BD",
     "onInfo": "#FFFFFF",
-    "border": "#E0E0DB",
-    "borderStrong": "#111111",
-    "divider": "#111111"
+    "border": "#2A2A2A",
+    "borderStrong": "#444444",
+    "divider": "#1E1E1E"
   },
   "typography": {
-    "displayFontFamily": "Space Grotesk",
-    "textFontFamily": "JetBrains Mono",
+    "displayFontFamily": "Fraunces",
+    "textFontFamily": "Satoshi",
     "scale": {
       "sm": 12,
       "base": 14,
@@ -42,7 +42,7 @@
     }
   },
   "spacing": {
-    "rule": "Use rigid grids, hard alignment, and visible spacing systems instead of soft cards. Maintain edge-to-edge containers where possible.",
+    "rule": "Generous spacing. Use md/lg for internal card padding, xl for section breathing room. Layouts should feel cinematic, not cramped.",
     "xs": 4,
     "sm": 8,
     "md": 12,
@@ -52,79 +52,131 @@
     "3xl": 48
   },
   "radius_tokens": {
-    "sm": 0,
-    "md": 0,
-    "lg": 0,
-    "pill": 0
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
   },
-  "shadow_tier": "0",
-  "navigation": "stack_only",
-  "icon_set": "Feather",
+  "shadow_tier": 0,
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
   "glassmorphism": {
-    "enabled": false,
-    "do's": [],
-    "dont's": ["Never use glassmorphism in Brutalist style", "No blur on any surface"]
+    "enabled": true,
+    "do's": [
+      "Use blur on bottom tab bar over map/content",
+      "Use translucent tinted base (≥75% of surface) underneath glass to ensure readability",
+      "Apply frosted glass overlay to featured vehicle hero card",
+      "Use glass for sticky header backgrounds and modal scrims"
+    ],
+    "dont's": [
+      "Never blur body text regions or form fields",
+      "Do not rely solely on blur without a tinted background layer"
+    ]
   },
   "platform_libraries": {
     "glass": {
-      "ios": "none",
-      "android": "none",
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
       "low_end_android_fallback": "solid surfaceSecondary"
     },
     "image": "expo-image",
-    "blur": "none",
+    "blur": "expo-blur",
     "bottom_sheet": "@gorhom/bottom-sheet",
     "animation": "react-native-reanimated",
     "gesture": "react-native-gesture-handler"
   },
   "screens": [
     {
-      "name": "Booking",
-      "purpose": "Primary operational surface for booking logistics vehicles.",
+      "name": "Welcome & Auth",
+      "purpose": "A premium cinematic entry using a dark map or abstract gold texture backdrop.",
       "states": {
-        "loading": "Giant mono counter and stark spinner.",
-        "empty": "Abstract map background waiting for address input.",
-        "error": "Signal red alert box with hard borders."
+        "loading": "Subtle gold spinner centered.",
+        "empty": "N/A",
+        "error": "Standard error toast with retry."
       },
-      "layout": "Header with stark typography. Below, structural 2pt black border form for Pickup/Dropoff inputs (use mono font for labels like [ ORIGIN ] and [ DEST ]). Below that, massive horizontal scrolling vehicle cards with exposed borders. Fare and Distance displayed in oversized mono typography above the sticky Book Now button. Book Now CTA is absolute full width, hard black border, solid brandPrimary fill."
+      "layout": "Full-bleed background image with a vertical gradient scrim (transparent to surfaceInverse equivalent). Display app name in Fraunces. Phone OTP input in a sleek surfaceSecondary card at the bottom. Primary CTA sticky at bottom."
     },
     {
-      "name": "ConfirmationForm",
-      "purpose": "Collect user name and phone number before dispatch.",
+      "name": "Home (Live Map)",
+      "purpose": "Map-first discovery and quick booking entry.",
       "states": {
-        "loading": "Simple stark spinner.",
-        "empty": "Empty input fields with rigid borders.",
-        "error": "Red outlined input fields with raw error strings."
+        "loading": "Map skeleton or centered spinner.",
+        "empty": "N/A",
+        "error": "Error message if location permissions fail."
       },
-      "layout": "Bottom sheet or full screen with edge-to-edge input fields. Form inputs should look like terminal inputs with hard borders. A massive Submit button at the bottom."
+      "layout": "Full-screen dark mode map. Bottom sheet (glass or surfaceSecondary) housing 'Where to?' input, quick chips (Home, Work), and 'Add Stop' button for multiple drops."
+    },
+    {
+      "name": "Vehicle Selection",
+      "purpose": "Present the selected vehicle hero card and a sleek list of alternatives.",
+      "states": {
+        "loading": "Skeleton of hero card and list items.",
+        "empty": "Illustration + 'No vehicles available in your area'.",
+        "error": "Error fetching prices + Retry."
+      },
+      "layout": "Top half: Prominent large glass card showing the currently selected vehicle, name, weight capacity (e.g. 750kg), arrival time, and Total Fare (Hide per-km breakdown). Bottom half: Scrollable vertical list of other vehicles (Two-wheeler to 17ft) with small Phosphor icons and fares."
+    },
+    {
+      "name": "Booking Summary & Payment",
+      "purpose": "Review route and total fare, select payment method.",
+      "states": {
+        "loading": "Confirming with server...",
+        "empty": "N/A",
+        "error": "Payment failure prompt."
+      },
+      "layout": "Sleek surfaceSecondary cards for route details. Large prominent total fare at bottom. Payment options (COD Pickup/Drop/UPI) in selectable rows with brandPrimary active states. Confirm CTA pinned at bottom."
+    },
+    {
+      "name": "Live Tracking",
+      "purpose": "Track driver en route in a premium dark map environment.",
+      "states": {
+        "loading": "Establishing connection...",
+        "empty": "N/A",
+        "error": "Lost connection to driver."
+      },
+      "layout": "Full-screen map. Floating glass pill for ETA at top. Bottom sheet featuring driver profile, vehicle details, and contact buttons."
+    },
+    {
+      "name": "Account Profile",
+      "purpose": "Settings and user details.",
+      "states": {
+        "loading": "Spinner.",
+        "empty": "N/A",
+        "error": "N/A"
+      },
+      "layout": "Clean vertical list for Saved Addresses, GST Details, Refer & Earn, Help & Support, Terms, Logout. Use surfaceSecondary for list rows with subtle divider."
     }
   ],
   "images": {
-    "map_background": {
-      "url": "https://images.pexels.com/photos/6288284/pexels-photo-6288284.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-      "alt": "abstract map graphic"
+    "welcome_background": {
+      "url": "https://images.unsplash.com/photo-1685625971503-ef1f82128939?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODB8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGRhcmslMjBjaGFyY29hbCUyMGdvbGQlMjB0ZXh0dXJlfGVufDB8fHx8MTc4NTA5MjU2Mnww&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1685625971503-ef1f82128939?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODB8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGRhcmslMjBjaGFyY29hbCUyMGdvbGQlMjB0ZXh0dXJlfGVufDB8fHx8MTc4NTA5MjU2Mnww&ixlib=rb-4.1.0&q=85",
+      "alt": "Abstract dark charcoal gold texture"
     },
-    "vehicle_two_wheeler": {
-      "url": "https://images.unsplash.com/photo-1617347454431-f49d7ff5c3b1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwxfHxtb3RvcmN5Y2xlJTIwZGVsaXZlcnklMjBib3glMjBsb2dpc3RpY3N8ZW58MHx8fHwxNzg0OTkzOTQ1fDA&ixlib=rb-4.1.0&q=85",
-      "alt": "motorcycle delivery box"
+    "map_night_placeholder": {
+      "url": "https://images.unsplash.com/photo-1544411047-c491e34a24e0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTF8MHwxfHNlYXJjaHwyfHxkYXJrJTIwY2l0eSUyMG1hcCUyMG5pZ2h0JTIwYWVyaWFsfGVufDB8fHx8MTc4NTA5MjU2MXww&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1544411047-c491e34a24e0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTF8MHwxfHNlYXJjaHwyfHxkYXJrJTIwY2l0eSUyMG1hcCUyMG5pZ2h0JTIwYWVyaWFsfGVufDB8fHx8MTc4NTA5MjU2MXww&ixlib=rb-4.1.0&q=85",
+      "alt": "Dark city map night aerial"
     },
-    "vehicle_tata_ace": {
-      "url": "https://images.unsplash.com/photo-1601467995997-ac1ae9a8fff4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwxfHxtaW5pJTIwdHJ1Y2slMjBsb2dpc3RpY3MlMjBjYXJnb3xlbnwwfHx8fDE3ODQ5OTM5NDV8MA&ixlib=rb-4.1.0&q=85",
-      "alt": "mini cargo truck"
-    },
-    "vehicle_bada_dost": {
-      "url": "https://images.unsplash.com/photo-1616432043562-3671ea2e5242?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwxfHxsYXJnZSUyMGNhcmdvJTIwdHJ1Y2slMjBsb2dpc3RpY3N8ZW58MHx8fHwxNzg0OTkzOTQ1fDA&ixlib=rb-4.1.0&q=85",
-      "alt": "large logistics cargo truck"
+    "hero_truck_placeholder": {
+      "url": "https://images.unsplash.com/photo-1779859447598-a844c0c0a010?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxibGFjayUyMHRyYW5zcG9ydCUyMHRydWNrJTIwc2lkZSUyMHZpZXd8ZW58MHx8fHwxNzg1MDkyNTYxfDA&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1779859447598-a844c0c0a010?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxibGFjayUyMHRyYW5zcG9ydCUyMHRydWNrJTIwc2lkZSUyMHZpZXd8ZW58MHx8fHwxNzg1MDkyNTYxfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Black transport truck side view"
     }
   },
   "instructions_to_main_agent": [
-    "STRICT RULE: Do NOT use `borderRadius` anywhere. Set all radius values to 0.",
-    "STRICT RULE: Do NOT use drop shadows or glassmorphism. Use 2pt solid `borderStrong` (hard black) for elevation and separation.",
-    "Use JetBrains Mono for all numeric values, fares, distances, and input labels like [ PICKUP ].",
-    "Use Space Grotesk for large headings and display typography.",
-    "The vehicle selector should present massive cards. When a vehicle is selected, flip its background color to `surfaceInverse` (black) or `brandPrimary` (orange), and text to white.",
-    "Implement Google Places Autocomplete logic for pickup and drop-off. The distance should be auto-calculated using Map APIs.",
-    "Fare calculations: Two-wheeler (₹10/km), Tata Ace (₹20/km), Bada Dost (₹30/km). Display the calculated fare explicitly in the UI.",
-    "The CTA button must be edge-to-edge with a 2pt black border."
-  ]
+    "Follow the '6 Glass / Luxe' personality. The app must feel cinematic and high-end, utilizing a strict charcoal/gold color scheme.",
+    "Implement the Vehicle Selection screen precisely as requested: a large, prominent featured card at the top for the selected vehicle, and a sleek vertical list beneath it for other alternatives.",
+    "IMPORTANT: Only display the TOTAL fare on pricing screens. Strictly hide any per-km rate breakdown, aligning with the premium experience guidelines.",
+    "Ensure the Multi-Stop Address Entry is fluid, with a clear 'Add Stop' interaction for multiple drop-offs.",
+    "Use Phosphor icons consistently across all tabs and lists. Account tab list must precisely match the provided items (Saved Addresses, GST Details, Refer & Earn, Help & Support, Terms, Logout).",
+    "Enforce proper contrast on glassmorphic elements—use translucent tinted base behind blur effects on bottom sheets and cards."
+  ],
+  "haptics": {
+    "button_primary_press": "impactMedium",
+    "vehicle_card_select": "impactLight",
+    "bottom_tab_press": "selection",
+    "add_stop_action": "impactLight",
+    "payment_method_select": "selection"
+  }
 }
