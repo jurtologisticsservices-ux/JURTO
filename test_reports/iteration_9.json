@@ -1,0 +1,50 @@
+{
+  "summary": "Regression re-test of iteration_8 fixes: all 3 issues are RESOLVED. (a) Auto-detected pickup no longer blocks the flow — vehicle.tsx now sends 'lat,lng' when place_id is null; hero + fare (₹95) render successfully with 'Current location' as pickup. (b) Tracking driver-card is visible IMMEDIATELY at t=0 with status='searching' — driver-name ('Karthik Rajan') and vehicle-number ('UP 92 JP 2873') visible; avatar shows spinner; call-driver-button correctly hidden until status advances. (c) Summary screen no longer requires goods-note — leaving goods-note-input empty and confirming successfully navigates to tracking. Regression 4 (fully-typed pickup+drop via Google autocomplete) also works — Chennai Central → T Nagar produced fare ₹131 with no errors. Backend pytest: 18/18 pass. E2E happy path works end-to-end on both auto-detect and typed-pickup paths.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Global (still pending from iteration_8)",
+        "issues": [
+          "Deprecation warnings still present: 'props.pointerEvents is deprecated' from ToastHost and 'TouchableWithoutFeedback is deprecated' — not blocking, but should be migrated. Repeat from iteration_7 / iteration_8."
+        ]
+      }
+    ],
+    "react_native_issues": [
+      {
+        "component": "ToastHost",
+        "issue": "Deprecated `pointerEvents` prop still present. Reference: /app/frontend/src/components/ToastHost.tsx:48 (unchanged since iteration_7)."
+      },
+      {
+        "component": "TouchableWithoutFeedback usage",
+        "issue": "One or more screens still use deprecated `TouchableWithoutFeedback` — should migrate to `Pressable` (unchanged since iteration_8)."
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_luxelogistics.py",
+    "/app/test_reports/pytest/pytest_luxelogistics.xml"
+  ],
+  "action_items": [
+    "(Non-blocking) Migrate ToastHost `pointerEvents` prop to `style.pointerEvents`.",
+    "(Non-blocking) Replace remaining `TouchableWithoutFeedback` occurrences with `Pressable`.",
+    "(Optional test-suite polish) test_luxelogistics.py uses `pytest.order_a_id` shared state, which breaks when pytest-xdist LoadScope splits WS tests onto a separate worker. Consider a class-level fixture or run with `-o addopts=` to avoid the false negative under parallel execution. Serial run: 18/18 pass; parallel run: 16/18 pass due to worker isolation only."
+  ],
+  "critical_code_review_comments": [
+    "vehicle.tsx line 32-36: correct fallback chain `s.place_id || (s.lat!=null && s.lng!=null ? `${s.lat},${s.lng}` : s.address)` — verified.",
+    "summary.tsx line 32-37: validation only checks receiver_name + 10-digit receiver_phone; goods-note is optional client-side (matches backend) — verified.",
+    "tracking/[id].tsx line 129-152: driver-card is now rendered unconditionally; ActivityIndicator inside avatar when isSearching; call-driver-button gated on !isSearching — verified in DOM."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (18/18 pytest cases pass serially; 16/18 under pytest-xdist due to shared-state fixture design, not a product issue)",
+    "frontend": "100% for the 4 requested regression scenarios (auto-detect pickup happy path, tracking driver-card visibility with searching state, goods-note optional, typed pickup+drop autocomplete path)"
+  },
+  "seed_data_creation": "3 disposable users created via mock OTP (any 6-digit); 1 completed booking (order stays in Mongo). All prefixed TEST_ or with random phone numbers.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 3 iteration_8 bugs (auto-detect pickup distance-multi 400, driver-card hidden while searching, goods-note wrongly required) are FIXED and verified via full E2E on mobile viewport (390x844). Only remaining polish items are 2 deprecation warnings carried over from prior iterations (ToastHost pointerEvents + TouchableWithoutFeedback) — non-blocking. Recommend fixing the shared `pytest.order_a_id` state in the test suite to remove the xdist false negative.",
+  "rca_of_issue": "Not applicable — this iteration is a regression validation. All 3 root causes documented in iteration_8 are correctly addressed by the code changes reviewed."
+}

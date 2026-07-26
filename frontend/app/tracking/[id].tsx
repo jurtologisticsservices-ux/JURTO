@@ -126,31 +126,29 @@ export default function TrackingScreen() {
           </View>
         ) : null}
 
-        {/* Driver card */}
+        {/* Driver card — always visible, shows loader ring when searching */}
         <View style={{ paddingHorizontal: S.lg, marginTop: S.lg }}>
-          {isSearching ? (
-            <View style={styles.card} testID="searching-driver">
-              <ActivityIndicator color={C.brand} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.searchingTitle}>Finding a driver…</Text>
-                <Text style={styles.searchingSub}>Usually takes under 30 seconds</Text>
-              </View>
-            </View>
-          ) : (
-            <View style={[styles.card, { flexDirection: "row", alignItems: "center", gap: S.md }]} testID="driver-card">
-              <View style={styles.driverAvatar}>
+          <View style={[styles.card, { flexDirection: "row", alignItems: "center", gap: S.md }]} testID="driver-card">
+            <View style={styles.driverAvatar}>
+              {isSearching ? (
+                <ActivityIndicator color={C.onBrand} />
+              ) : (
                 <Feather name="user" size={22} color={C.onBrand} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.driverName} testID="driver-name">{order.driver_name}</Text>
-                <View style={styles.plate}><Text style={styles.plateText} testID="vehicle-number">{order.vehicle_number}</Text></View>
-                <Text style={styles.driverPhone}>{order.driver_phone}</Text>
-              </View>
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.driverName} testID="driver-name">{order.driver_name}</Text>
+              <View style={styles.plate}><Text style={styles.plateText} testID="vehicle-number">{order.vehicle_number}</Text></View>
+              <Text style={styles.driverPhone}>
+                {isSearching ? "En-route to pickup — searching" : order.driver_phone}
+              </Text>
+            </View>
+            {!isSearching && (
               <Pressable style={styles.callBtn} onPress={callDriver} testID="call-driver-button">
                 <Feather name="phone" size={18} color={C.onBrand} />
               </Pressable>
-            </View>
-          )}
+            )}
+          </View>
         </View>
 
         {/* Timeline */}

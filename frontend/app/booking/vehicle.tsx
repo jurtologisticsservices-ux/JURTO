@@ -28,9 +28,15 @@ export default function VehicleScreen() {
   useEffect(() => {
     (async () => {
       try {
+        const stopKeys = stops
+          .map((s) =>
+            s.place_id ||
+            (s.lat != null && s.lng != null ? `${s.lat},${s.lng}` : s.address),
+          )
+          .filter(Boolean) as string[];
         const [vs, dist] = await Promise.all([
           fetchVehicles(),
-          fetchDistanceMulti(stops.map((s) => s.place_id || s.address).filter(Boolean) as string[]),
+          fetchDistanceMulti(stopKeys),
         ]);
         setVehicles(vs);
         bookingStore.set({

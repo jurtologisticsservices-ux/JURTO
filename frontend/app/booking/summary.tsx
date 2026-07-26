@@ -34,7 +34,6 @@ export default function SummaryScreen() {
     const rDigits = receiverPhone.replace(/\D/g, "");
     if (!receiverName.trim()) return setError("Receiver name required");
     if (rDigits.length < 10) return setError("Enter valid 10-digit receiver phone");
-    if (!goodsNote.trim()) return setError("Describe the goods");
 
     setBusy(true);
     setError(null);

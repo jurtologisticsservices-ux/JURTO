@@ -1,51 +1,40 @@
-# ShiftLogistics - Vehicle Booking + Tracking App
+# LuxeLogistics - Premium Chennai Logistics App
 
 ## Overview
-Mobile-first Expo React Native app for booking logistics vehicles in India with a complete booking → tracking → history flow.
+High-end goods logistics booking app for Chennai with a Luxury Dark theme (Charcoal + Gold accents).
+Fully authenticated per-user experience with real-time tracking, notifications, multi-stop delivery, and a 9-tier vehicle catalog.
 
-## Navigation Architecture
-- `app/(tabs)/` — Bottom tab layout with 2 tabs:
-  - `index.tsx` — Booking screen (vehicle picker + addresses + fare)
-  - `my-bookings.tsx` — Order history (Active + Past sections)
-- `app/tracking/[id].tsx` — Stack-pushed route showing driver + timeline for a specific booking.
+## Design System
+- **Personality**: Cinematic dark luxury — charcoal `#121212` surface, gold `#D4AF37` brand.
+- **Typography**: Serif display (Georgia) + system sans body.
+- **Corners**: Rounded `md=12 / lg=20 / pill=999`. Zero borders on cards; subtle 1pt `#2A2A2A`.
 
-## Core Features
-- Vehicle picker: Two-wheeler ₹10/km, Tata Ace ₹20/km, Bada Dost ₹30/km
-- Google Places autocomplete for pickup & drop-off
-- Google Distance Matrix — real road distance + ETA
-- Booking Details bottom sheet: Sender phone, Receiver name, Receiver phone, Goods note, Payment method (COD Pickup / COD Drop / UPI)
-- Auto driver + vehicle-number assignment on booking creation (random from a curated pool)
-- Order Tracking screen: driver card with call-driver button (tel:), yellow license plate, 4-step timeline (Searching → Driver Assigned → Goods Picked Up → Delivered)
-- Timeline auto-advances via PATCH `/api/bookings/{id}/status` at t=3s / 11s / 21s
-- My Bookings: pull-to-refresh, active-on-top / past-below, color-coded status badges
+## App Flow
+Welcome → Phone Login → OTP Verify → Home (Live Map) → Multi-Stop Address Entry → Vehicle Selection (Hero card + list of 9) → Booking Summary + Payment → Live Tracking. Bottom tabs = Home / Orders / Account.
 
-## Notifications & Alerts
-- **In-app notification center**: `BellIcon` (with unread badge) in both tab headers → opens `/notifications` history screen. Notifications persisted in MongoDB `notifications` collection.
-- **Real-time toast banners** (`<ToastHost>`) mounted at root — appear on Booking Confirmed (brand orange), Driver Assigned / Goods Picked Up (info dark), Delivered (success green). Auto-dismiss in ~4s.
-- **Backend triggers**:
-  - `POST /api/bookings` emits `BOOKING_CONFIRMED`.
-  - `PATCH /api/bookings/{id}/status` emits `STATUS_ASSIGNED` (with driver name + license plate), `STATUS_PICKED_UP`, `STATUS_DELIVERED`, `STATUS_CANCELLED`.
-- **Second WebSocket** `/api/ws/notifications` broadcasts every emitted notification globally. Frontend `NotificationsProvider` reconnects with backoff, keeps in-memory list synced.
-- REST: `GET /api/notifications`, `POST /api/notifications/read-all`, `DELETE /api/notifications`.
-- On booking creation, backend geocodes pickup + dropoff via Google Geocoding API and places driver ~1–2 km from pickup.
-- Background asyncio task moves driver 15% closer to target every 2s (target = pickup while `searching|assigned`, dropoff after `picked_up`).
-- FastAPI **WebSocket** at `/api/ws/tracking/{id}` broadcasts `snapshot` on connect and `location` / `status` events afterwards. K8s preview ingress supports WS upgrade.
-- Frontend live map: `react-native-webview` + Leaflet + OSM tiles on native; iframe fallback on web (both driven by the same `<LiveMap>` component with `injectJavaScript` / `contentWindow.updateData`).
-- Client-side Haversine auto-transitions status when driver comes within ~150 m of the current target.
-- **Driver Mode** screen at `/driver/[id]` — yellow-header, live map, status override buttons (`ACCEPT & DEPART` → `GOODS PICKED UP` → `DELIVERED`), sender / receiver call buttons. Reachable from a `DRIVER` button in the customer tracking header.
+## Vehicle Catalog (9)
+Two-Wheeler 20kg · Mini 3W 90kg · 3 Wheeler 500kg · Tata Ace 750kg · Pickup 8ft 1200kg · Pickup 9ft 1700kg · Tata 407 2500kg · 14ft 3500kg · 17ft 4500kg. Rates are internal only — customer sees only the final total fare.
 
-## API Endpoints
-- `GET /api/vehicles`
-- `GET /api/maps/autocomplete?q=`
-- `GET /api/maps/distance-km?origin=&destination=`
-- `POST /api/bookings` — geocodes + spawns driver + persists
-- `GET /api/bookings` — list (skips malformed docs)
-- `GET /api/bookings/{id}`
-- `PATCH /api/bookings/{id}/status` — broadcasts to WS subscribers
-- `WS /api/ws/tracking/{id}` — snapshot + live location + status events
+## Authentication
+- Phone-OTP JWT (HS256, 30-day, `JWT_SECRET`).
+- `OTP_MODE=mock` — any 6-digit code accepted. Swap `OTP_MODE=twilio` (+ Twilio env) to enable real SMS.
 
-## Design
-Brutalist LIGHT: hard 2pt black borders, no border-radius, no shadow, mono type for data, orange `#FF4500` accent, yellow `#FFC300` for license plates, green `#00B85E` for completed timeline steps.
+## Backend
+- MongoDB collections: `users`, `orders` (persistent, ready for future Driver App), `addresses`, `notifications`. Legacy `bookings` retained but hidden.
+- All order/notification endpoints require `Authorization: Bearer <JWT>`. WebSockets accept `?token=`.
+- Google APIs: Places Autocomplete (New), Distance Matrix, Geocoding.
+- Multi-stop distance via `POST /api/maps/distance-multi` (sum of consecutive hops).
+- Background driver simulator ticks every 2s, broadcasts over `/api/ws/tracking/{id}` and `/api/ws/notifications`.
 
-## Test Report
-16/16 backend pytest + full frontend E2E via Playwright — see `/app/test_reports/iteration_5.json`.
+## Frontend
+- Expo Router with route guard via `AuthProvider` redirecting unauth users to `/welcome`.
+- Booking wizard state in a lightweight `useSyncExternalStore` (`bookingStore`).
+- Live pickup auto-detect via `expo-location` (falls back to Chennai centre `13.0827, 80.2707`).
+- Map = Leaflet + OSM tiles in `react-native-webview` (native) / `<iframe>` (web).
+
+## Account Sub-pages
+- `/account/addresses` — full CRUD (Google Places autocomplete)
+- `/account/gst` — functional (persists to user profile)
+- `/account/refer` — real code generation + Copy to clipboard (share coming soon)
+- `/account/help` — reach us + FAQ
+- `/account/terms` — full terms text
