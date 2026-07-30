@@ -1,30 +1,16 @@
 import React from "react";
-import { SafeAreaView, View, Text, StyleSheet, Pressable } from "react-native";
+import { SafeAreaView, View, Text, StyleSheet, Pressable, TextInput } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Feather } from "@expo/vector-icons";
 
 export default function HomeMapScreen() {
+  // Centered on Kolathur, Chennai
   const initialRegion = {
-    latitude: 13.0827,
-    longitude: 80.2707,
-    latitudeDelta: 0.02,
-    longitudeDelta: 0.02,
+    latitude: 13.1211,
+    longitude: 80.2210,
+    latitudeDelta: 0.012,
+    longitudeDelta: 0.012,
   };
-
-  const customMapStyle = [
-    { elementType: "geometry", stylers: [{ color: "#000000" }] },
-    { elementType: "labels.text.fill", stylers: [{ color: "#000000" }] },
-    { elementType: "labels.text.stroke", stylers: [{ color: "#000000" }] },
-    { featureType: "road", elementType: "geometry", stylers: [{ color: "#212121" }] },
-    { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212121" }] },
-    { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3A3A3A" }] },
-    { featureType: "water", elementType: "geometry", stylers: [{ color: "#000000" }] },
-    { featureType: "poi", stylers: [{ visibility: "off" }] },
-    { featureType: "transit", stylers: [{ visibility: "off" }] },
-    // Hide labels for a cleaner Uber-like dark map
-    { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-    { elementType: "labels.text", stylers: [{ visibility: "off" }] },
-  ];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -33,27 +19,36 @@ export default function HomeMapScreen() {
           provider={PROVIDER_GOOGLE}
           style={StyleSheet.absoluteFillObject}
           initialRegion={initialRegion}
-          customMapStyle={customMapStyle}
+          showsTraffic={true}
           showsUserLocation={true}
-          showsMyLocationButton={false}
+          showsMyLocationButton={true}
         >
-          <Marker coordinate={{ latitude: 13.0827, longitude: 80.2707 }}>
-            <View style={styles.truckMarker}>
-              <Feather name="truck" size={18} color="#111" />
-            </View>
-          </Marker>
+          <Marker coordinate={{ latitude: initialRegion.latitude, longitude: initialRegion.longitude }} />
         </MapView>
 
-        {/* Top overlay card */}
-        <View style={styles.topCard} pointerEvents="box-none">
-          <Text style={styles.topCardText}>Hello Sathish</Text>
-        </View>
+        {/* Top search bar + chips (Google Maps like) */}
+        <View style={styles.topOverlay} pointerEvents="box-none">
+          <View style={styles.searchBar}>
+            <Feather name="map-pin" size={20} color="#DB4437" style={styles.pinIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search here"
+              placeholderTextColor="#666"
+              underlineColorAndroid="transparent"
+            />
+          </View>
 
-        {/* Bottom overlay card */}
-        <View style={styles.bottomCard} pointerEvents="box-none">
-          <Pressable style={styles.whereCard}>
-            <Text style={styles.whereText}>Where to?</Text>
-          </Pressable>
+          <View style={styles.chipsRow}>
+            <Pressable style={styles.chip} android_ripple={{ color: "rgba(0,0,0,0.06)" }}>
+              <Text style={styles.chipText}>Restaurants</Text>
+            </Pressable>
+            <Pressable style={styles.chip} android_ripple={{ color: "rgba(0,0,0,0.06)" }}>
+              <Text style={styles.chipText}>Petrol</Text>
+            </Pressable>
+            <Pressable style={styles.chip} android_ripple={{ color: "rgba(0,0,0,0.06)" }}>
+              <Text style={styles.chipText}>Hotels</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -61,43 +56,50 @@ export default function HomeMapScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#000" },
+  safe: { flex: 1, backgroundColor: "#fff" },
   container: { flex: 1 },
-  topCard: {
+  topOverlay: {
     position: "absolute",
-    top: 50,
-    left: 20,
-    right: 20,
-    backgroundColor: "#1A1A1A",
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.04)",
-    alignItems: "flex-start",
-  },
-  topCardText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  bottomCard: {
-    position: "absolute",
-    bottom: 100,
-    left: 20,
-    right: 20,
+    top: 40,
+    left: 12,
+    right: 12,
     alignItems: "center",
   },
-  whereCard: {
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
     width: "100%",
-    backgroundColor: "#1A1A1A",
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 2,
-    borderColor: "#D4AF37", // gold
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  pinIcon: { marginRight: 8 },
+  searchInput: { flex: 1, fontSize: 16, color: "#111" },
+  chipsRow: {
+    marginTop: 10,
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  chip: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
     alignItems: "center",
+    justifyContent: "center",
+    minWidth: 90,
   },
-  whereText: { color: "#fff", fontSize: 18, fontWeight: "700" },
-  truckMarker: {
-    backgroundColor: "#ffffff",
-    padding: 6,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
+  chipText: { color: "#111", fontSize: 14, fontWeight: "600" },
 });
