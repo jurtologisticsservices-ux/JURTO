@@ -5,6 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import random
 import re
+import hashlib
 import asyncio
 import logging
 from pathlib import Path
@@ -27,6 +28,20 @@ JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGO = "HS256"
 JWT_TTL_DAYS = 30
 OTP_MODE = os.environ.get("OTP_MODE", "mock")  # "mock" or "twilio"
+OTP_TTL_SECONDS = 300
+OTP_MAX_ATTEMPTS = 5
+TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
+TWILIO_FROM = os.environ.get("TWILIO_FROM", "")
+
+# Lazy Twilio client — only imported when actually needed
+_twilio_client = None
+def _get_twilio_client():
+    global _twilio_client
+    if _twilio_client is None:
+        from twilio.rest import Client  # noqa
+        _twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    return _twilio_client
 
 # ---------- Vehicle catalogue ----------
 VEHICLES: List[dict] = [
