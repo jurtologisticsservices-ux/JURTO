@@ -27,17 +27,21 @@ GOOGLE_MAPS_API_KEY = os.environ['GOOGLE_MAPS_API_KEY']
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGO = "HS256"
 JWT_TTL_DAYS = 30
-OTP_MODE = os.environ.get("OTP_MODE", "mock")  # "mock" or "twilio"
+# Twilio Verify must be explicitly configured. No mock/dev bypass allowed.
 OTP_TTL_SECONDS = 300
 OTP_MAX_ATTEMPTS = 5
 TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM = os.environ.get("TWILIO_FROM", "")
+TWILIO_VERIFY_SERVICE_SID = os.environ.get("TWILIO_VERIFY_SERVICE_SID", "")
 
 # Lazy Twilio client — only imported when actually needed
 _twilio_client = None
 def _get_twilio_client():
     global _twilio_client
+    # Require all three pieces for Twilio Verify: account, token and service SID
+    if not (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_VERIFY_SERVICE_SID):
+        return None
     if _twilio_client is None:
         from twilio.rest import Client  # noqa
         _twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
@@ -355,9 +359,18 @@ async def send_otp(req: SendOtpRequest):
     phone = _normalize_phone(req.phone)
     if len(phone) < 12:
         raise HTTPException(status_code=400, detail="Enter a valid phone number")
-    # In mock mode: no real SMS is sent. Any 6-digit OTP is accepted at verify.
-    logger.info(f"[OTP {OTP_MODE}] Send request for {phone}")
-    return {"ok": True, "mode": OTP_MODE, "hint": "In dev mode, any 6-digit code is accepted"}
+    client = _get_twilio_client()
+    if client is None:
+        logger.warning("Twilio Verify not configured; rejecting send-otp")
+        raise HTTPException(status_code=500, detail="Twilio Verify not configured")
+
+    try:
+        verification = client.verify.services(TWILIO_VERIFY_SERVICE_SID).verifications.create(to=phone, channel="sms")
+        logger.info(f"[OTP] Sent verification to {phone}, status={verification.status}")
+        return {"ok": True, "status": verification.status}
+    except Exception as e:
+        logger.exception(f"Twilio send error: {e}")
+        raise HTTPException(status_code=502, detail="Failed to send OTP")
 
 
 @api_router.post("/auth/verify-otp", response_model=AuthResponse)
@@ -366,8 +379,20 @@ async def verify_otp(req: VerifyOtpRequest):
     otp = re.sub(r"\D", "", req.otp)
     if len(otp) != 6:
         raise HTTPException(status_code=400, detail="OTP must be 6 digits")
-    if OTP_MODE != "mock":
-        raise HTTPException(status_code=500, detail="Real OTP not configured yet")
+
+    client = _get_twilio_client()
+    if client is None:
+        logger.warning("Twilio Verify not configured; rejecting verify-otp")
+        raise HTTPException(status_code=500, detail="Twilio Verify not configured")
+
+    try:
+        verification_check = client.verify.services(TWILIO_VERIFY_SERVICE_SID).verification_checks.create(to=phone, code=otp)
+    except Exception as e:
+        logger.exception(f"Twilio verify error: {e}")
+        raise HTTPException(status_code=502, detail="Failed to verify OTP")
+
+    if getattr(verification_check, "status", None) != "approved":
+        raise HTTPException(status_code=401, detail="Invalid OTP")
 
     doc = await db.users.find_one({"phone": phone}, {"_id": 0})
     if not doc:
