@@ -69,7 +69,6 @@ export default function OtpAuth() {
           <View style={{ marginTop: S.xl }}>
             <Text style={styles.title}>Verify your{"\n"}number</Text>
             <Text style={styles.subtitle}>Enter the 6-digit code sent to {formatted}</Text>
-            <Text style={styles.devHint}>Dev mode — enter any 6 digits (e.g. 123456)</Text>
 
             <TextInput
               testID="otp-input"
@@ -140,7 +139,6 @@ const styles = StyleSheet.create({
   backBtn: { padding: S.sm, borderRadius: R.pill, backgroundColor: C.surfaceSecondary, width: 40, alignItems: "center" },
   title: { fontFamily: DISPLAY, fontSize: 28, color: C.onSurface, lineHeight: 34, letterSpacing: -0.5 },
   subtitle: { fontFamily: TEXT, fontSize: 14, color: C.onSurfaceSecondary, marginTop: S.md, lineHeight: 20 },
-  devHint: { fontFamily: TEXT, fontSize: 11, color: C.brand, marginTop: 4, opacity: 0.9 },
   otpInput: {
     marginTop: S.xl,
     fontFamily: TEXT,
