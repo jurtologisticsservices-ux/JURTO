@@ -1,30 +1,30 @@
 import React from "react";
-import { SafeAreaView, View, Text, StyleSheet, Pressable, TextInput } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { SafeAreaView, View, Text, StyleSheet, Pressable, TextInput, Dimensions } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import LiveMap from "@/src/components/LiveMap";
 
-export default function HomeMapScreen() {
+export default function Home() {
   // Centered on Kolathur, Chennai
-  const initialRegion = {
+  const center = {
     latitude: 13.1211,
     longitude: 80.2210,
-    latitudeDelta: 0.012,
-    longitudeDelta: 0.012,
   };
+
+  const mapData = {
+    pickup_lat: center.latitude,
+    pickup_lng: center.longitude,
+  };
+
+  const windowHeight = Dimensions.get("window").height;
+  const mapHeight = Math.round(windowHeight * 0.6);
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        <MapView
-          provider={PROVIDER_GOOGLE}
-          style={StyleSheet.absoluteFillObject}
-          initialRegion={initialRegion}
-          showsTraffic={true}
-          showsUserLocation={true}
-          showsMyLocationButton={true}
-        >
-          <Marker coordinate={{ latitude: initialRegion.latitude, longitude: initialRegion.longitude }} />
-        </MapView>
+        {/* LiveMap (Leaflet in a WebView) replacing react-native-maps MapView */}
+        <View style={styles.mapWrap}>
+          <LiveMap data={mapData} height={mapHeight} testID="home-live-map" />
+        </View>
 
         {/* Top search bar + chips (Google Maps like) */}
         <View style={styles.topOverlay} pointerEvents="box-none">
@@ -58,6 +58,7 @@ export default function HomeMapScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
   container: { flex: 1 },
+  mapWrap: { flex: 1 },
   topOverlay: {
     position: "absolute",
     top: 40,
