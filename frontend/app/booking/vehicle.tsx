@@ -39,8 +39,19 @@ export default function VehicleScreen() {
           fetchDistanceMulti(stopKeys),
         ]);
         setVehicles(vs);
+
+        // Safe default selection: prefer existing bookingStore vehicle, else a sane fallback.
+        const currentVehicle = bookingStore.get().vehicle as Vehicle | null;
+        const fallbackIndex = vs && vs.length > 0 ? Math.min(3, vs.length - 1) : -1;
+        const fallbackVehicle = fallbackIndex >= 0 ? vs[fallbackIndex] : null;
+        const defaultVehicle = currentVehicle ?? fallbackVehicle ?? null;
+
+        if (!defaultVehicle && vs.length === 0) {
+          setError("No vehicles available");
+        }
+
         bookingStore.set({
-          vehicle: bookingStore.get().vehicle ?? vs[3], // Default to Tata Ace
+          vehicle: defaultVehicle,
           distanceKm: dist.distance_km,
           durationText: dist.duration_text ?? null,
         });
